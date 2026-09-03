@@ -1,0 +1,859 @@
+<title>109 Days to Hyrox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#F1F4F6; --panel:#FBFCFC; --ink:#101B23; --ink-2:#3E525F; --ink-3:#71858F;
+  --rule:#D5DEE3; --rule-2:#E6ECEF;
+  --petrol:#0089AC; --clay:#C0561F;
+  --good:#2F7D5B; --warn:#A8761A; --crit:#A63D2B;
+  --good-bg:#E4F0EA; --warn-bg:#F6EEDD; --crit-bg:#F7E7E3;
+  --grid:#DCE4E8;
+  --display:'Archivo','Helvetica Neue',Arial,sans-serif;
+  --body:'IBM Plex Sans','Helvetica Neue',Arial,sans-serif;
+  --mono:'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0F161B; --panel:#161F25; --ink:#E6EDF1; --ink-2:#A7B8C2; --ink-3:#76888F;
+  --rule:#2A3841; --rule-2:#202B32;
+  --petrol:#1C9DBF; --clay:#D0743B;
+  --good:#4FA87D; --warn:#CE9B3C; --crit:#D2634C;
+  --good-bg:#16261F; --warn-bg:#282013; --crit-bg:#2A1A17;
+  --grid:#28353D;
+}}
+:root[data-theme="dark"]{
+  --paper:#0F161B; --panel:#161F25; --ink:#E6EDF1; --ink-2:#A7B8C2; --ink-3:#76888F;
+  --rule:#2A3841; --rule-2:#202B32;
+  --petrol:#1C9DBF; --clay:#D0743B;
+  --good:#4FA87D; --warn:#CE9B3C; --crit:#D2634C;
+  --good-bg:#16261F; --warn-bg:#282013; --crit-bg:#2A1A17;
+  --grid:#28353D;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px 88px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* ---- race clock band ---- */
+.clock{border-bottom:1px solid var(--rule);margin-bottom:44px;
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 28px;padding:26px 0 18px}
+.clock .days{font-family:var(--display);font-weight:800;font-size:clamp(46px,9vw,76px);
+  line-height:.86;letter-spacing:-.035em;font-variant-numeric:tabular-nums}
+.clock .unit{font-family:var(--display);font-weight:600;font-size:15px;
+  text-transform:uppercase;letter-spacing:.13em;color:var(--ink-3)}
+.clock .meta{margin-left:auto;text-align:right;font-family:var(--mono);
+  font-size:12px;color:var(--ink-3);line-height:1.9}
+.clock .meta b{color:var(--ink-2);font-weight:500}
+
+/* ---- verdict ---- */
+.verdict{margin-bottom:46px}
+.verdict .lede{font-family:var(--display);font-weight:700;
+  font-size:clamp(25px,4.1vw,38px);line-height:1.14;letter-spacing:-.022em;
+  max-width:19ch;margin-bottom:20px}
+.verdict p{max-width:62ch;color:var(--ink-2);margin:0 0 14px}
+.verdict strong{color:var(--ink);font-weight:600}
+
+/* ---- stat row ---- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));
+  gap:1px;background:var(--rule);border:1px solid var(--rule);margin-bottom:52px}
+.stat{background:var(--panel);padding:17px 18px 15px}
+.stat .k{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--ink-3);margin-bottom:9px}
+.stat .v{font-family:var(--display);font-weight:700;font-size:31px;
+  line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.stat .s{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin-top:7px}
+.stat .v .sm{font-size:16px;font-weight:600;color:var(--ink-3);letter-spacing:0}
+.pill{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.08em;padding:2.5px 7px;border-radius:2px;margin-top:9px}
+.p-good{background:var(--good-bg);color:var(--good)}
+.p-warn{background:var(--warn-bg);color:var(--warn)}
+.p-crit{background:var(--crit-bg);color:var(--crit)}
+
+/* ---- sections ---- */
+section{margin-bottom:52px}
+.head{display:flex;align-items:baseline;gap:14px;margin-bottom:6px;
+  border-bottom:1px solid var(--rule);padding-bottom:9px}
+.head h2{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.14em}
+.head .note{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin-left:auto}
+.sub{color:var(--ink-2);max-width:66ch;margin:16px 0 22px;font-size:14.5px}
+.sub strong{color:var(--ink);font-weight:600}
+
+/* ---- severity-striped findings ---- */
+.finding{display:grid;grid-template-columns:3px 1fr;gap:16px;background:var(--panel);
+  border:1px solid var(--rule);border-left:0;margin-bottom:10px}
+.finding .stripe{background:var(--ink-3)}
+.finding.crit .stripe{background:var(--crit)}
+.finding.warn .stripe{background:var(--warn)}
+.finding.good .stripe{background:var(--good)}
+.finding .fb{padding:15px 18px 15px 0}
+.finding h3{font-size:15px;font-weight:600;font-family:var(--body);margin-bottom:5px}
+.finding p{margin:0;color:var(--ink-2);font-size:14px;max-width:64ch}
+.finding .num{font-family:var(--mono);font-size:12px;color:var(--ink);font-weight:600}
+
+/* ---- charts ---- */
+.chart{background:var(--panel);border:1px solid var(--rule);padding:20px 20px 12px;
+  overflow-x:auto}
+.chart .ct{font-family:var(--mono);font-size:11px;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--ink-3);margin-bottom:2px}
+.chart .cs{font-size:13.5px;color:var(--ink-2);margin-bottom:16px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:780px){.two{grid-template-columns:1fr}}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;
+  margin-right:6px;vertical-align:-1px}
+
+/* ---- week board ---- */
+.wk{background:var(--panel);border:1px solid var(--rule)}
+.wk-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 20px;
+  padding:16px 20px;border-bottom:1px solid var(--rule)}
+.wk-top .lab{font-family:var(--mono);font-size:11px;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--ink-3)}
+.wk-top .prog{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+.wk-top .prog b{color:var(--ink);font-weight:600}
+.meter{height:5px;background:var(--rule-2);position:relative;overflow:hidden}
+.meter i{position:absolute;inset:0 auto 0 0;background:var(--petrol);display:block}
+.ses{display:grid;grid-template-columns:30px 46px 1fr;gap:14px;padding:15px 20px;
+  border-bottom:1px solid var(--rule-2);align-items:start}
+.ses:last-child{border-bottom:0}
+.ses.opt{opacity:.72}
+.ses .day{font-family:var(--mono);font-size:11px;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--ink-3);padding-top:3px}
+.ses h3{font-size:15px;font-weight:600;font-family:var(--body);margin:0 0 4px}
+.ses.is-done h3{color:var(--ink-3);text-decoration:line-through;
+  text-decoration-color:var(--rule)}
+.ses p{margin:0;color:var(--ink-2);font-size:13.5px;max-width:62ch}
+.ses .did{font-family:var(--mono);font-size:11.5px;color:var(--good);margin-top:6px}
+.ses .did.manual{color:var(--ink-3)}
+.box{width:21px;height:21px;border:1.5px solid var(--rule);border-radius:3px;
+  background:transparent;padding:0;cursor:pointer;display:grid;place-items:center;
+  margin-top:1px;color:var(--ink-3);font-family:var(--mono);font-size:13px;
+  line-height:1;transition:border-color .12s,background .12s}
+.box:hover:not(:disabled){border-color:var(--petrol)}
+.box:disabled{cursor:default}
+.box.auto{background:var(--good);border-color:var(--good);color:#fff}
+.box.man{background:var(--ink-3);border-color:var(--ink-3);color:var(--panel)}
+.box.busy{opacity:.45}
+.wk-foot{padding:13px 20px;border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-3);line-height:1.7}
+.wk-extra{padding:13px 20px;border-top:1px solid var(--rule-2);
+  font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
+.wk-extra b{color:var(--ink-2);font-weight:500}
+
+/* ---- tooltip ---- */
+#tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .1s;
+  background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:11.5px;
+  padding:7px 10px;border-radius:3px;z-index:50;white-space:pre;line-height:1.55}
+
+/* ---- table ---- */
+table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:12.5px;
+  font-variant-numeric:tabular-nums}
+th{text-align:left;font-weight:600;color:var(--ink-3);font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.08em;padding:0 12px 8px 0;
+  border-bottom:1px solid var(--rule)}
+td{padding:7px 12px 7px 0;border-bottom:1px solid var(--rule-2);color:var(--ink-2)}
+td.n{color:var(--ink);font-weight:500}
+tr:last-child td{border-bottom:0}
+
+/* ---- actions ---- */
+ol.act{list-style:none;padding:0;margin:0;counter-reset:a}
+ol.act li{counter-increment:a;display:grid;grid-template-columns:34px 1fr;
+  gap:14px;padding:15px 0;border-bottom:1px solid var(--rule-2)}
+ol.act li:last-child{border-bottom:0}
+ol.act li::before{content:counter(a,decimal-leading-zero);font-family:var(--mono);
+  font-size:12px;font-weight:600;color:var(--petrol);padding-top:2px}
+ol.act h3{font-size:15px;font-weight:600;font-family:var(--body);margin-bottom:4px}
+ol.act p{margin:0;color:var(--ink-2);font-size:14px;max-width:60ch}
+footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono);
+  font-size:11.5px;color:var(--ink-3);line-height:1.85}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+:focus-visible{outline:2px solid var(--petrol);outline-offset:2px}
+</style>
+
+<div class="wrap">
+
+<header class="clock" id="clock"></header>
+
+<div class="verdict">
+  <div class="lede">The body is fine. The training is the problem.</div>
+  <p>Twelve months of watch data say your recovery has headroom to spare: resting
+  heart rate <strong>{{rhr}} bpm</strong>, overnight HRV <strong>{{hrv}}</strong> and rising.
+  Nothing here looks overtrained.</p>
+  <p>What the data does say is that you are <strong>running {{sess8}} times a week against
+  a plan built on four</strong>, your seven-day load has fallen to
+  <strong>{{acwr}}&times; your 28-day average</strong>, and at the same heart rate you
+  are {{eff_loss}} s/km slower than you were at your peak. You are not at risk of breaking. You
+  are at risk of arriving underdone.</p>
+</div>
+
+<div class="stats" id="stats"></div>
+
+<section>
+  <div class="head">
+    <h2>This week</h2>
+    <span class="note" id="wk-note"></span>
+  </div>
+  <p class="sub">Three runs and an optional fourth, built from where your training
+  actually is rather than from the template in <span class="mono">plan.md</span>.
+  The long run steps up <strong>2 km from your real ceiling</strong>, not to the
+  22 km the plan assumes. <strong>These tick themselves off</strong> as Garmin
+  data syncs, and the day shown is the day you actually ran, not the day it was
+  slotted for. Strength and station work stay in
+  <span class="mono">plan.md</span> &mdash; Garmin has never recorded any, so a box
+  here could never resolve.</p>
+  <div class="wk" id="week"></div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Volume</h2>
+    <span class="note">16 weeks &middot; hover for detail</span>
+  </div>
+  <p class="sub">The problem is not the height of the good weeks, it is the
+  <strong>troughs between them</strong>. Week-to-week variation is <strong>{{cv}}%</strong>.
+  A {{vol_hi}} km week followed by a {{vol_lo}} km week averages out on paper and builds nothing in
+  the legs &mdash; fitness accrues from the floor, not the ceiling.</p>
+  <div class="chart">
+    <div class="ct">Weekly running volume</div>
+    <div class="cs">Bars are kilometres per week. The band marks the 25&ndash;35 km
+      range the current plan phase assumes.</div>
+    <svg id="vol" viewBox="0 0 940 280" role="img"
+      aria-label="Weekly running volume for 16 weeks, oscillating between 6 and 36 km against a 25 to 35 km target band"></svg>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Aerobic efficiency</h2>
+    <span class="note">pace at HR 135&ndash;155</span>
+  </div>
+  <p class="sub">Pace at a fixed heart rate is the cleanest read on aerobic fitness.
+  It has to be compared on <strong>flat runs only</strong> &mdash; your latest quarter
+  averages {{elev_hi}} m of climbing per km against {{elev_lo}} at your best, so the raw number overstates
+  the decline by more than half. Corrected for terrain the drop is
+  <strong>{{eff_loss}} s/km</strong>, not {{eff_raw_loss}}.</p>
+  <div class="two">
+    <div class="chart">
+      <div class="ct">Pace at aerobic heart rate</div>
+      <div class="cs">A faster pace sits higher, so a falling line means slowing down.
+        Both lines cover the same runs &mdash; the gap between them is terrain.</div>
+      <svg id="eff" viewBox="0 0 460 260" role="img"
+        aria-label="Pace at aerobic heart rate by quarter: flat-run pace declines from 5:33 to 5:58 per km while all-terrain pace declines further to 6:36"></svg>
+      <div class="legend">
+        <span><i style="background:var(--petrol)"></i>Flat runs only</span>
+        <span><i style="background:var(--clay)"></i>All terrain</span>
+      </div>
+    </div>
+    <div class="chart">
+      <div class="ct">VO<sub>2</sub>max &middot; Garmin estimate</div>
+      <div class="cs">Shaded months are when your watch recorded heat acclimation,
+        which also costs pace at a given heart rate.</div>
+      <svg id="vo2" viewBox="0 0 460 260" role="img"
+        aria-label="VO2max by month, peaking at 56.8 in March 2026 and settling at 55.0 in September"></svg>
+      <div class="legend">
+        <span><i style="background:var(--petrol)"></i>VO<sub>2</sub>max</span>
+        <span><i style="background:var(--grid)"></i>Heat acclimation 14&ndash;22%</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>What is missing</h2>
+    <span class="note">12 months of activity records</span>
+  </div>
+  <p class="sub">Hyrox is eight 1 km runs alternating with eight stations. Read your
+  activity log against that description and three things are simply absent.</p>
+
+  <div class="finding crit">
+    <div class="stripe"></div>
+    <div class="fb">
+      <h3><span class="num">{{kmish_n}}</span> &nbsp;1 km efforts, ever</h3>
+      <p>Not one run in twelve months falls in the 0.8&ndash;1.5 km band. The race
+      is that distance, eight times, on tired legs. You have never rehearsed the
+      single repeating unit of the event.</p>
+    </div>
+  </div>
+  <div class="finding crit">
+    <div class="stripe"></div>
+    <div class="fb">
+      <h3><span class="num">{{strength_n}}</span> &nbsp;strength or station sessions logged</h3>
+      <p>The plan calls for two lifting days plus a Friday station circuit. Garmin
+      has no record of any. If it is happening untracked, it still fatigues you
+      while staying invisible to readiness and load &mdash; which is part of why
+      your load ratio reads 0.70.</p>
+    </div>
+  </div>
+  <div class="finding warn">
+    <div class="stripe"></div>
+    <div class="fb">
+      <h3><span class="num">{{fast_gap}}</span> &nbsp;days since a run under 5:00/km</h3>
+      <p>Last one was {{fast_last}}. You have {{fast_n}} sub-5:00 runs in the year and none
+      since spring, while the plan's Tuesday interval session has not appeared in
+      the data at all.</p>
+    </div>
+  </div>
+  <div class="finding warn">
+    <div class="stripe"></div>
+    <div class="fb">
+      <h3><span class="num">{{comp_n}}</span> &nbsp;days pairing a run with a second session</h3>
+      <p>Your own plan names compromised running &mdash; running hard off station
+      fatigue &mdash; as the limiter for a strong result. {{comp_n}} days in a year put a
+      run next to anything else, and most of those were incidental.</p>
+    </div>
+  </div>
+
+  <div class="chart" style="margin-top:14px">
+    <div class="ct">Where your running intensity actually sits</div>
+    <div class="cs" id="zsub"></div>
+    <svg id="zones" viewBox="0 0 940 190" role="img"
+      aria-label="Intensity distribution: 54 percent Z2 aerobic, 38 percent Z3 tempo, 5 percent Z4 threshold, no Z5"></svg>
+    <div class="legend"><span>Nearly everything lands in the middle. There is no
+      genuine speed end to this distribution, and 38% in Z3 is the classic
+      grey zone &mdash; too hard to recover from, too easy to drive adaptation.</span>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>The long run has gone backwards</h2>
+    <span class="note">runs of 15 km or more</span>
+  </div>
+  <p class="sub">{{long_n}} long runs in twelve months, and the last one was
+  <strong>{{long_last}}</strong>. Phase 2b opens on 28 September expecting 22&ndash;26 km.
+  From a current ceiling of {{ceiling}} km that is a jump you cannot make in one step, and
+  the marathon behind it needs 30 km+.</p>
+  <div class="chart">
+    <svg id="long" viewBox="0 0 940 210" role="img"
+      aria-label="Long runs of 15km or more plotted over twelve months, ending 2 July 2026, with an 8-week gap since"></svg>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Load you have not budgeted for</h2>
+    <span class="note">seasonal pattern</span>
+  </div>
+  <p class="sub">Ice hockey ran <strong>{{hk_lo}}&ndash;{{hk_hi}} sessions a month across the season</strong>, then stopped completely in April. If the season restarts on the
+  same calendar, roughly <strong>{{hk_total}} high-intensity sessions</strong> land straight
+  on top of Phase 2b and the taper &mdash; and your plan does not mention hockey at all.</p>
+  <div class="chart">
+    <svg id="hock" viewBox="0 0 940 170" role="img"
+      aria-label="Ice hockey sessions per month, four to five from October 2025 to March 2026, then zero from April onward"></svg>
+  </div>
+</section>
+
+<section>
+  <div class="head">
+    <h2>Recovery &amp; sleep</h2>
+    <span class="note">the one measurement problem</span>
+  </div>
+  <p class="sub">Recovery is the good news, with one caveat about how it is measured.
+  Garmin reports a resting heart rate even on nights you did not wear the watch,
+  derived from daytime readings &mdash; and those run about <strong>{{unworn_delta}} bpm
+  high</strong>. Read naively, your resting HR looks like it sits around {{unworn_avg}}.
+  Counting only the {{sleep_n}} nights with real overnight data, it is <strong>{{rhr}}</strong>
+  and has been all along. The apparent trend was measuring your watch habits.</p>
+  <table>
+    <thead><tr><th>Measure</th><th>Now</th><th>Baseline</th><th>Read</th></tr></thead>
+    <tbody>
+      <tr><td>Resting HR (overnight only)</td><td class="n">{{rhr_exact}} bpm</td><td>{{rhr_base}}</td><td>Strong, stable</td></tr>
+      <tr><td>Overnight HRV</td><td class="n">{{hrv_exact}}</td><td>{{hrv_base}}</td><td>Rising &mdash; well recovered</td></tr>
+      <tr><td>Training readiness</td><td class="n">{{rdy}}</td><td>{{rdy_all}} (12mo)</td><td>Moderate</td></tr>
+      <tr><td>Sleep, nights recorded</td><td class="n">{{sleep_n}} of {{sleep_span}}</td><td>&mdash;</td><td>{{sleep_cov}}% coverage</td></tr>
+      <tr><td>Sleep on those nights</td><td class="n">{{sleep_avg}} h</td><td>{{sleep_need}} h needed</td><td>short</td></tr>
+      <tr><td>Nights under 7 h</td><td class="n">{{sleep_short}} of {{sleep_n}}</td><td>&mdash;</td><td>&nbsp;</td></tr>
+    </tbody>
+  </table>
+  <div class="finding warn" style="margin-top:18px">
+    <div class="stripe"></div>
+    <div class="fb">
+      <h3>You are blind on {{sleep_blind}}% of nights</h3>
+      <p>HRV, body battery, sleep score and much of training readiness all derive
+      from overnight wear. At {{sleep_cov}}% coverage most of your recovery data simply does
+      not exist &mdash; and the gaps get silently backfilled with worse numbers.
+      This is the cheapest fix on this page: wear the watch to bed.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="head"><h2>What to change</h2><span class="note">in priority order</span></div>
+  <ol class="act">
+    <li><div>
+      <h3>Put a floor under the week before raising the ceiling</h3>
+      <p>Three runs every week beats four-then-one. Your {{cv}}% week-to-week variation
+      is doing more damage than your average mileage suggests. Target a floor of
+      20 km, every week, before chasing a 35 km week.</p>
+    </div></li>
+    <li><div>
+      <h3>Rebuild the long run from 11 km, not from the plan's 22</h3>
+      <p>Add roughly 2 km a week: 13, 15, 17, 19. That reaches the low end of the
+      Phase 2b requirement by late October without a doubling jump, and it is the
+      same base the marathon needs afterwards.</p>
+    </div></li>
+    <li><div>
+      <h3>Add one 1 km repeat session a week &mdash; it is literally the race</h3>
+      <p>6&ndash;8 &times; 1 km at target race pace with short recovery. Start it now:
+      at {{fast_gap}} days without genuine speed work, the first few sessions rebuild a
+      capacity you already had in April, not a new one.</p>
+    </div></li>
+    <li><div>
+      <h3>Log the strength and station work, or plan around its absence</h3>
+      <p>Right now the two are indistinguishable in the data. If you are lifting,
+      record it so load and readiness mean something. If you are not, that is the
+      larger finding &mdash; the station half of the race is untrained with 15 weeks left.</p>
+    </div></li>
+    <li><div>
+      <h3>Decide about hockey before October decides for you</h3>
+      <p>Either budget 4&ndash;5 sessions a month into the peak block and cut running
+      intensity to match, or sit out the first half of the season. Both work. Being
+      surprised by it in November does not.</p>
+    </div></li>
+    <li><div>
+      <h3>Wear the watch overnight</h3>
+      <p>Zero training cost, and it turns {{sleep_blind}}% of your recovery data from
+      guesswork into measurement &mdash; right as the load starts to climb.</p>
+    </div></li>
+  </ol>
+</section>
+
+<footer>
+  Generated from 12 months of Garmin Connect data held locally in
+  <span class="mono">~/dev/garmin/data</span> &mdash; {{runs}} runs, {{daily_n}} daily records,
+  {{sleep_n}} sleep nights, {{ready_n}} readiness scores.<br>
+  Efficiency figures are terrain-corrected; resting HR excludes {{unworn_n}} daytime-derived
+  values. Heart-rate zones assume a 194 bpm maximum, the highest observed in the period.
+</footer>
+</div>
+<div id="tip" role="status"></div>
+
+<script>
+const D = __DATA__;
+
+const NS = "http://www.w3.org/2000/svg";
+const tip = document.getElementById("tip");
+const el = (n, a) => { const e = document.createElementNS(NS, n);
+  for (const k in a) e.setAttribute(k, a[k]); return e; };
+const pace = p => { const m = Math.floor(p); return m + ":" + String(Math.round((p - m) * 60)).padStart(2, "0"); };
+
+function hoverable(node, text) {
+  node.style.cursor = "default";
+  const show = ev => { tip.textContent = text; tip.style.opacity = 1;
+    const r = tip.getBoundingClientRect();
+    tip.style.left = Math.min(window.innerWidth - r.width - 10, ev.clientX + 14) + "px";
+    tip.style.top = Math.max(8, ev.clientY - r.height - 12) + "px"; };
+  node.addEventListener("mousemove", show);
+  node.addEventListener("mouseenter", show);
+  node.addEventListener("mouseleave", () => tip.style.opacity = 0);
+}
+
+/* ---------- header + stat tiles ---------- */
+(function () {
+  const h = D.hdr, s = D.stats;
+  const race = new Date(h.race + "T00:00:00").toLocaleDateString("en-GB",
+    { day: "numeric", month: "short", year: "numeric" });
+  const thru = new Date(h.through + "T00:00:00").toLocaleDateString("en-GB",
+    { day: "numeric", month: "short", year: "numeric" });
+  document.getElementById("clock").innerHTML =
+    '<span class="days">' + h.days + "</span>"
+    + '<span class="unit">days to Hyrox<br>Vancouver \u00b7 Open</span>'
+    + '<span class="meta">Race day <b>' + race + "</b> \u00b7 " + h.weeks
+    + " weeks out<br>Garmin data through <b>" + thru + "</b><br>"
+    + h.runs + " runs \u00b7 " + h.km + " km analysed</span>";
+
+  const tile = (k, v, sm, sub, state, pill) =>
+    '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v
+    + (sm ? '<span class="sm">' + sm + "</span>" : "") + "</div>"
+    + '<div class="s">' + sub + "</div>"
+    + '<span class="pill p-' + state + '">' + pill + "</span></div>";
+
+  document.getElementById("stats").innerHTML =
+    tile("Load ratio \u00b7 7d:28d", s.acwr.toFixed(2), "",
+      s.acute + " acute / " + s.chronic + " chronic", s.acwr_state,
+      s.acwr < 0.8 ? "Detraining" : s.acwr > 1.5 ? "Spike" : "Building")
+    + tile("Plan adherence", s.adherence, "%",
+      s.sess8 + " of 4 runs/wk, last 8wk", s.adh_state,
+      s.adherence >= 85 ? "On plan" : s.adherence >= 60 ? "Slipping" : "Off plan")
+    + tile("Longest run, 8 wk", s.long8, " km", "Phase 2b wants 22\u201326",
+      s.long_state, s.long8 >= 22 ? "On target" : "Half of target")
+    + tile("Recovery", s.rhr ? Math.round(s.rhr) : "\u2014", " bpm",
+      "HRV " + (s.hrv || "\u2014") + " \u00b7 readiness " + (s.rdy || "\u2014"),
+      "good", "Headroom");
+})();
+
+/* ---------- week board ---------- */
+const WK = D.week;
+let dbNs = null, manual = {};
+
+function sesState(s) {
+  if (s.done) return "auto";
+  return manual[s.id] ? "man" : "open";
+}
+
+function renderWeek() {
+  const host = document.getElementById("week");
+  const req = WK.sessions.filter(s => !s.optional);
+  const doneN = req.filter(s => sesState(s) !== "open").length;
+  const floorPct = Math.min(100, 100 * WK.km_done / WK.km_floor);
+
+  document.getElementById("wk-note").textContent =
+    WK.week_label + "  \u00b7  data through " + WK.data_through;
+
+  let h = '<div class="wk-top">'
+    + '<span class="lab">Week of ' + WK.week_start + "</span>"
+    + '<span class="prog"><b>' + doneN + "</b> of " + req.length
+    + " sessions  \u00b7  <b>" + WK.km_done + "</b> of " + WK.km_floor
+    + " km floor</span></div>"
+    + '<div class="meter"><i style="width:' + floorPct.toFixed(1) + '%"></i></div>';
+
+  WK.sessions.forEach(s => {
+    const st = sesState(s);
+    const done = st !== "open";
+    h += '<div class="ses' + (done ? " is-done" : "") + (s.optional ? " opt" : "") + '">'
+      + '<button class="box ' + (st === "open" ? "" : st) + '" data-id="' + s.id + '"'
+      + (st === "auto" ? " disabled" : "")
+      + ' aria-pressed="' + done + '"'
+      + ' title="' + (st === "auto" ? "Matched from Garmin data"
+          : done ? "Ticked by hand \u2014 click to undo" : "Mark done") + '">'
+      + (done ? "\u2713" : "") + "</button>"
+      + '<span class="day">' + (s.done ? s.done.day : s.day) + "</span><div>"
+      + "<h3>" + s.title + "</h3><p>" + s.detail + "</p>";
+    if (s.done) {
+      const d = s.done, bits = [d.date];
+      if (d.km) bits.push(d.km + " km");
+      if (d.pace) bits.push(pace(d.pace) + "/km");
+      if (d.hr) bits.push("HR " + d.hr);
+      h += '<div class="did">\u2713 ' + bits.join("  \u00b7  ") + "</div>";
+    } else if (manual[s.id]) {
+      h += '<div class="did manual">\u2713 ticked by hand</div>';
+    }
+    h += "</div></div>";
+  });
+
+  if (WK.unclaimed.length) {
+    h += '<div class="wk-extra">Also recorded this week: '
+      + WK.unclaimed.map(e => "<b>" + e.name + "</b> (" + e.type
+        + (e.km ? ", " + e.km + " km" : "") + ")").join("  \u00b7  ") + "</div>";
+  }
+  h += '<div class="wk-foot" id="wk-foot">Sessions tick themselves off from '
+    + "Garmin. Tick one by hand only if the watch missed a run you did.</div>";
+  host.innerHTML = h;
+
+  host.querySelectorAll("button.box:not(:disabled)").forEach(btn => {
+    btn.addEventListener("click", () => toggle(btn.dataset.id, btn));
+  });
+}
+
+async function toggle(id, btn) {
+  const next = !manual[id];
+  manual[id] = next;
+  btn.classList.add("busy");
+  renderWeek();
+  if (!dbNs) return;
+  try {
+    const ref = dbNs.doc("ticks/" + WK.week_label + "__" + id);
+    if (next) await ref.set({ done: true, at: new Date().toISOString() });
+    else await ref.delete();
+  } catch (e) {
+    manual[id] = !next;          // put it back; the write did not land
+    renderWeek();
+    const f = document.getElementById("wk-foot");
+    if (f) f.textContent = "Could not save that tick. It will not persist.";
+  }
+}
+
+renderWeek();
+
+(async () => {
+  dbNs = (typeof claude !== "undefined" && claude && claude.use)
+    ? await claude.use("db") : null;
+  if (!dbNs) {
+    const f = document.getElementById("wk-foot");
+    if (f) f.textContent = "Sessions tick themselves off from Garmin. "
+      + "Manual ticks are not saved in this view.";
+    return;
+  }
+  try {
+    const snap = await dbNs.collection("ticks").get();
+    const pre = WK.week_label + "__";
+    (snap.docs || snap || []).forEach(d => {
+      const key = d.id || "";
+      if (key.startsWith(pre)) manual[key.slice(pre.length)] = true;
+    });
+    renderWeek();
+  } catch (e) { /* leave the page on its Garmin-derived state */ }
+})();
+
+/* ---------- weekly volume ---------- */
+(function () {
+  const s = document.getElementById("vol");
+  const W = 940, H = 280, L = 42, R = 12, T = 16, B = 46;
+  const iw = W - L - R, ih = H - T - B, max = 40;
+  const y = v => T + ih - (v / max) * ih;
+
+  s.appendChild(el("rect", { x: L, y: y(35), width: iw, height: y(25) - y(35),
+    fill: "var(--grid)", opacity: .45 }));
+  const bl = el("text", { x: L + 6, y: y(35) - 6, fill: "var(--ink-3)",
+    "font-family": "var(--mono)", "font-size": 10.5 });
+  bl.textContent = "plan phase target  25\u201335 km";
+  s.appendChild(bl);
+
+  [0, 10, 20, 30, 40].forEach(v => {
+    s.appendChild(el("line", { x1: L, x2: L + iw, y1: y(v), y2: y(v),
+      stroke: "var(--grid)", "stroke-width": 1, opacity: v === 0 ? 1 : .55 }));
+    const t = el("text", { x: L - 9, y: y(v) + 4, "text-anchor": "end",
+      fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 11 });
+    t.textContent = v; s.appendChild(t);
+  });
+
+  const bw = iw / D.weekly.length, pad = 5;
+  D.weekly.forEach((d, i) => {
+    const x = L + i * bw + pad / 2, w = bw - pad, h = Math.max(2, T + ih - y(d.km));
+    const g = el("g", {});
+    g.appendChild(el("rect", { x, y: y(d.km), width: w, height: h,
+      fill: "var(--petrol)", rx: 4, ry: 4 }));
+    g.appendChild(el("rect", { x, y: T + ih - Math.min(h, 5), width: w,
+      height: Math.min(h, 5), fill: "var(--petrol)" }));
+    g.appendChild(el("rect", { x, y: T, width: w, height: ih, fill: "transparent" }));
+    hoverable(g, d.w + "\n" + d.km + " km \u00b7 " + d.n + " run" + (d.n > 1 ? "s" : "") +
+      "\nlongest " + d.long + " km");
+    s.appendChild(g);
+    if (i % 2 === 0) {
+      const t = el("text", { x: x + w / 2, y: H - B + 18, "text-anchor": "middle",
+        fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10.5 });
+      t.textContent = "W" + d.w.slice(-2); s.appendChild(t);
+    }
+  });
+  const ax = el("text", { x: L, y: H - 8, fill: "var(--ink-3)",
+    "font-family": "var(--mono)", "font-size": 10.5 });
+  ax.textContent = "kilometres per week \u2014 ISO week number";
+  s.appendChild(ax);
+})();
+
+/* ---------- efficiency ---------- */
+(function () {
+  const s = document.getElementById("eff");
+  const W = 460, H = 260, L = 52, R = 54, T = 18, B = 44;
+  const iw = W - L - R, ih = H - T - B, lo = 5.4, hi = 6.8;
+  const x = i => L + (iw / (D.eff.length - 1)) * i;
+  const y = v => T + ((v - lo) / (hi - lo)) * ih;
+
+  [5.5, 6.0, 6.5].forEach(v => {
+    s.appendChild(el("line", { x1: L, x2: L + iw, y1: y(v), y2: y(v),
+      stroke: "var(--grid)", "stroke-width": 1 }));
+    const t = el("text", { x: L - 9, y: y(v) + 4, "text-anchor": "end",
+      fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 11 });
+    t.textContent = pace(v); s.appendChild(t);
+  });
+
+  [["all", "var(--clay)"], ["flat", "var(--petrol)"]].forEach(([k, c]) => {
+    const pts = D.eff.map((d, i) => [x(i), y(d[k])]);
+    s.appendChild(el("polyline", { points: pts.map(p => p.join(",")).join(" "),
+      fill: "none", stroke: c, "stroke-width": 2,
+      "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    pts.forEach((p, i) => {
+      s.appendChild(el("circle", { cx: p[0], cy: p[1], r: 5.5,
+        fill: c, stroke: "var(--panel)", "stroke-width": 2 }));
+    });
+    const last = pts[pts.length - 1];
+    const t = el("text", { x: last[0] + 11, y: last[1] + 4, fill: c,
+      "font-family": "var(--mono)", "font-size": 11.5, "font-weight": 600 });
+    t.textContent = pace(D.eff[D.eff.length - 1][k]); s.appendChild(t);
+  });
+
+  D.eff.forEach((d, i) => {
+    const g = el("g", {});
+    g.appendChild(el("rect", { x: x(i) - iw / 8, y: T, width: iw / 4, height: ih,
+      fill: "transparent" }));
+    hoverable(g, d.q + "  \u00b7  " + d.n + " flat runs\nflat        " + pace(d.flat) +
+      "/km\nall terrain " + pace(d.all) + "/km\nclimb       " + d.elev + " m/km");
+    s.appendChild(g);
+    const t = el("text", { x: x(i), y: H - B + 20, "text-anchor": "middle",
+      fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10.5 });
+    t.textContent = d.q.replace("20", "'"); s.appendChild(t);
+  });
+  const best = el("text", { x: x(1), y: y(5.56) - 15, "text-anchor": "middle",
+    fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10.5 });
+  best.textContent = "peak  5:33"; s.appendChild(best);
+})();
+
+/* ---------- vo2max ---------- */
+(function () {
+  const s = document.getElementById("vo2");
+  const W = 460, H = 260, L = 40, R = 34, T = 18, B = 44;
+  const iw = W - L - R, ih = H - T - B, lo = 53.5, hi = 57.5;
+  const x = i => L + (iw / (D.vo2.length - 1)) * i;
+  const y = v => T + ih - ((v - lo) / (hi - lo)) * ih;
+
+  const heat = D.vo2.map((d, i) => d.h > 0 ? i : -1).filter(i => i >= 0);
+  if (heat.length) {
+    const x0 = x(heat[0]) - iw / (D.vo2.length - 1) / 2;
+    const x1 = x(heat[heat.length - 1]) + iw / (D.vo2.length - 1) / 2;
+    s.appendChild(el("rect", { x: x0, y: T, width: x1 - x0, height: ih,
+      fill: "var(--grid)", opacity: .55 }));
+    const t = el("text", { x: (x0 + x1) / 2, y: T + 13, "text-anchor": "middle",
+      fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10 });
+    t.textContent = "heat"; s.appendChild(t);
+  }
+  [54, 55, 56, 57].forEach(v => {
+    s.appendChild(el("line", { x1: L, x2: L + iw, y1: y(v), y2: y(v),
+      stroke: "var(--grid)", "stroke-width": 1 }));
+    const t = el("text", { x: L - 9, y: y(v) + 4, "text-anchor": "end",
+      fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 11 });
+    t.textContent = v; s.appendChild(t);
+  });
+  const pts = D.vo2.map((d, i) => [x(i), y(d.v)]);
+  s.appendChild(el("polyline", { points: pts.map(p => p.join(",")).join(" "),
+    fill: "none", stroke: "var(--petrol)", "stroke-width": 2,
+    "stroke-linejoin": "round", "stroke-linecap": "round" }));
+  D.vo2.forEach((d, i) => {
+    const peak = d.v === 56.8, last = i === D.vo2.length - 1;
+    s.appendChild(el("circle", { cx: x(i), cy: y(d.v), r: peak || last ? 5.5 : 3,
+      fill: peak || last ? "var(--petrol)" : "var(--panel)",
+      stroke: "var(--petrol)", "stroke-width": 2 }));
+    const g = el("g", {});
+    g.appendChild(el("rect", { x: x(i) - 14, y: T, width: 28, height: ih, fill: "transparent" }));
+    hoverable(g, d.m + "\nVO\u2082max " + d.v.toFixed(1) +
+      (d.h ? "\nheat acclim. " + d.h + "%" : ""));
+    s.appendChild(g);
+  });
+  [[6, "56.8", -13], [12, "55.0", -13]].forEach(([i, txt, dy]) => {
+    const t = el("text", { x: x(i), y: y(D.vo2[i].v) + dy, "text-anchor": i === 12 ? "end" : "middle",
+      fill: "var(--ink)", "font-family": "var(--mono)", "font-size": 11.5, "font-weight": 600 });
+    t.textContent = txt; s.appendChild(t);
+  });
+  ["2025-09", "2026-03", "2026-09"].forEach(m => {
+    const i = D.vo2.findIndex(d => d.m === m);
+    const t = el("text", { x: x(i), y: H - B + 20,
+      "text-anchor": i === 0 ? "start" : i === 12 ? "end" : "middle",
+      fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10.5 });
+    t.textContent = m.replace("-", "\u00b7"); s.appendChild(t);
+  });
+})();
+
+/* ---------- zones ---------- */
+(function () {
+  const s = document.getElementById("zones");
+  const W = 940, H = 190, L = 118, R = 60, T = 12;
+  const iw = W - L - R, rowH = 32, total = D.zones.reduce((a, z) => a + z.n, 0);
+  D.zones.forEach((d, i) => {
+    const yy = T + i * rowH, w = (d.n / 50) * iw;
+    const lab = el("text", { x: L - 14, y: yy + 17, "text-anchor": "end",
+      fill: "var(--ink)", "font-family": "var(--mono)", "font-size": 12, "font-weight": 500 });
+    lab.textContent = d.z + "  " + d.l; s.appendChild(lab);
+    const rng = el("text", { x: L - 14, y: yy + 17, "text-anchor": "end",
+      fill: "transparent", "font-size": 1 }); s.appendChild(rng);
+    if (d.n > 0) {
+      const g = el("g", {});
+      g.appendChild(el("rect", { x: L, y: yy + 3, width: Math.max(4, w), height: 22,
+        fill: i >= 3 ? "var(--clay)" : "var(--petrol)", rx: 4, ry: 4 }));
+      g.appendChild(el("rect", { x: L, y: yy + 3, width: Math.min(5, w), height: 22,
+        fill: i >= 3 ? "var(--clay)" : "var(--petrol)" }));
+      hoverable(g, d.z + " " + d.l + "  " + d.r + "\n" + d.n + " runs  \u00b7  " +
+        Math.round(100 * d.n / total) + "% of running");
+      s.appendChild(g);
+    }
+    const v = el("text", { x: L + Math.max(4, w) + 11, y: yy + 19,
+      fill: "var(--ink-2)", "font-family": "var(--mono)", "font-size": 11.5 });
+    v.textContent = d.n === 0 ? "0 runs" : d.n + " runs \u00b7 " + Math.round(100 * d.n / total) + "%";
+    s.appendChild(v);
+  });
+})();
+
+document.getElementById("zsub").textContent =
+  D.hdr.runs + " runs by average heart rate, against a "
+  + D.hdr.maxhr + " bpm maximum.";
+
+/* ---------- long runs ---------- */
+(function () {
+  const s = document.getElementById("long");
+  const W = 940, H = 210, L = 40, R = 40, T = 22, B = 44;
+  const iw = W - L - R, ih = H - T - B;
+  const t0 = new Date("2025-09-15").getTime(), t1 = new Date("2026-10-01").getTime();
+  const x = d => L + ((new Date(d).getTime() - t0) / (t1 - t0)) * iw;
+  const y = v => T + ih - ((v - 10) / 16) * ih;
+
+  [15, 20, 25].forEach(v => {
+    s.appendChild(el("line", { x1: L, x2: L + iw, y1: y(v), y2: y(v),
+      stroke: "var(--grid)", "stroke-width": 1 }));
+    const t = el("text", { x: L - 9, y: y(v) + 4, "text-anchor": "end",
+      fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 11 });
+    t.textContent = v + " km"; s.appendChild(t);
+  });
+  s.appendChild(el("line", { x1: L, x2: L + iw, y1: T + ih, y2: T + ih,
+    stroke: "var(--grid)", "stroke-width": 1 }));
+
+  // the gap since the last long run
+  const gx0 = x(D.longruns[D.longruns.length - 1].d), gx1 = x(D.hdr.through);
+  s.appendChild(el("rect", { x: gx0, y: T, width: gx1 - gx0, height: ih,
+    fill: "var(--clay)", opacity: .10 }));
+  const gt = el("text", { x: (gx0 + gx1) / 2, y: T - 7, "text-anchor": "middle",
+    fill: "var(--clay)", "font-family": "var(--mono)", "font-size": 11, "font-weight": 600 });
+  gt.textContent = D.stats.gap_days + " days, no long run"; s.appendChild(gt);
+
+  D.longruns.forEach(d => {
+    s.appendChild(el("line", { x1: x(d.d), x2: x(d.d), y1: T + ih, y2: y(d.km),
+      stroke: "var(--petrol)", "stroke-width": 2 }));
+    const g = el("g", {});
+    g.appendChild(el("circle", { cx: x(d.d), cy: y(d.km), r: 6,
+      fill: "var(--petrol)", stroke: "var(--panel)", "stroke-width": 2 }));
+    g.appendChild(el("circle", { cx: x(d.d), cy: y(d.km), r: 14, fill: "transparent" }));
+    hoverable(g, d.d + "\n" + d.km + " km @ " + pace(d.p) + "/km");
+    s.appendChild(g);
+  });
+  // current ceiling
+  s.appendChild(el("line", { x1: L, x2: L + iw, y1: y(D.stats.ceiling), y2: y(D.stats.ceiling),
+    stroke: "var(--clay)", "stroke-width": 1.5, "stroke-dasharray": "5 4" }));
+  const ct = el("text", { x: L + 8, y: y(D.stats.ceiling) - 7, "text-anchor": "start",
+    fill: "var(--clay)", "font-family": "var(--mono)", "font-size": 11 });
+  ct.textContent = "current 8-week ceiling  " + D.stats.ceiling + " km"; s.appendChild(ct);
+
+  ["2025-10-01", "2026-01-01", "2026-04-01", "2026-07-01", "2026-10-01"].forEach(d => {
+    const t = el("text", { x: x(d), y: H - B + 20, "text-anchor": "middle",
+      fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10.5 });
+    t.textContent = d.slice(0, 7).replace("-", "\u00b7"); s.appendChild(t);
+  });
+})();
+
+/* ---------- hockey ---------- */
+(function () {
+  const s = document.getElementById("hock");
+  const W = 940, H = 170, L = 40, R = 20, T = 16, B = 46;
+  const iw = W - L - R, ih = H - T - B, bw = iw / D.hockey.length;
+  const y = v => T + ih - (v / 6) * ih;
+  s.appendChild(el("line", { x1: L, x2: L + iw, y1: T + ih, y2: T + ih,
+    stroke: "var(--grid)", "stroke-width": 1 }));
+  D.hockey.forEach((d, i) => {
+    const xx = L + i * bw + 6, w = bw - 12;
+    if (d.n > 0) {
+      const g = el("g", {});
+      const h = T + ih - y(d.n);
+      g.appendChild(el("rect", { x: xx, y: y(d.n), width: w, height: h,
+        fill: "var(--clay)", rx: 4, ry: 4 }));
+      g.appendChild(el("rect", { x: xx, y: T + ih - 5, width: w, height: 5, fill: "var(--clay)" }));
+      hoverable(g, d.m + "\n" + d.n + " hockey sessions");
+      s.appendChild(g);
+    } else {
+      s.appendChild(el("rect", { x: xx, y: T + ih - 3, width: w, height: 3,
+        fill: "var(--grid)" }));
+    }
+    const t = el("text", { x: xx + w / 2, y: H - B + 18, "text-anchor": "middle",
+      fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10.5 });
+    t.textContent = d.m.slice(5); s.appendChild(t);
+  });
+  const a = el("text", { x: L, y: H - B + 36, fill: "var(--ink-3)",
+    "font-family": "var(--mono)", "font-size": 10.5 });
+  a.textContent = "sessions per month \u2014 season ran Oct through Mar, dormant since April";
+  s.appendChild(a);
+  const b = el("text", { x: L + iw, y: T + 12, "text-anchor": "end", fill: "var(--ink-3)",
+    "font-family": "var(--mono)", "font-size": 10.5 });
+  b.textContent = "23 sessions in season"; s.appendChild(b);
+})();
+</script>
