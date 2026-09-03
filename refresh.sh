@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# One-command refresh: pull new Garmin data, re-match this week's sessions,
-# rebuild the dashboard. Safe to re-run; every step is idempotent.
+# One-command refresh: pull new Garmin data, top up per-activity detail,
+# re-match this week's runs, rebuild the dashboard. Safe to re-run.
 set -uo pipefail
 cd "$(dirname "$0")"
 PY=./.venv/bin/python
@@ -14,7 +14,9 @@ fi
 SKIP_SYNC=0
 [ "${1:-}" = "--no-sync" ] && SKIP_SYNC=1
 
-if [ "$SKIP_SYNC" -eq 0 ]; then
+if [ "$SKIP_SYNC" -eq 1 ]; then
+  echo "==> Skipping sync (--no-sync)"
+else
   echo "==> Syncing Garmin"
   if ! $PY garmin_sync.py; then
     code=$?
@@ -26,8 +28,10 @@ if [ "$SKIP_SYNC" -eq 0 ]; then
       echo "   Rebuilding from existing data." >&2
     fi
   fi
-else
-  echo "==> Skipping sync (--no-sync)"
+
+  echo
+  echo "==> Activity detail (splits, zones, traces)"
+  $PY sync_details.py || echo "   detail incomplete; the dashboard still builds" >&2
 fi
 
 echo

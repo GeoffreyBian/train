@@ -15,6 +15,7 @@ Answer "how is training going" by reading both.
 ~/dev/garmin/
   garmin_sync.py       # Garmin -> CSV
   analyze.py           # CSV -> training report
+  sync_details.py      # per-activity splits, HR zones, weather, traces
   refresh.sh           # sync + re-match + rebuild, one command
   week_plan.py         # this week's prescribed runs + auto-matching
   build_dashboard.py   # CSV -> dashboard.html
@@ -25,6 +26,8 @@ Answer "how is training going" by reading both.
     sleep.csv          # one row per night
     daily.csv          # one row per day (steps, RHR, HRV, stress, body battery)
     readiness.csv      # one row per morning
+    zones.json         # Garmin's own max HR / threshold / zone floors
+    details/<id>.json  # per-activity laps, zones, weather, ~160-point trace
     .last_sync
   insights/weekly/     # YYYY-Www.md reviews
   data/week_plan.json
@@ -72,7 +75,47 @@ Manual ticks (for a run the watch missed) live in the artifact's `db` under
 `ticks/<week>__<session id>`. Read them back with the Artifact tool's `read_db`
 when judging adherence.
 
+## Drill-down views
+
+The dashboard is hash-routed: `#/activities`, `#/activity/<id>`, `#/nights`,
+`#/night/<date>`, `#/days`, `#/day/<date>`. When he asks about a specific run,
+night or day, point him at the URL rather than retyping the numbers.
+
+`sync_details.py` fetches lap splits, time in each HR zone, weather and a
+downsampled HR/pace/elevation/cadence trace, one JSON per activity, fetched once
+and kept. `refresh.sh` tops up anything missing.
+
+**Heart-rate zones come from `data/zones.json`**, which is Garmin's own model for
+him (max 198, threshold 177, floors 99/119/139/158/178). Do not infer a max HR
+from observed peaks — that understated it as 194 and moved the intensity
+distribution from 71% to 38% in Z3, which is a completely different read on his
+training.
+
+Two unit traps already handled: Garmin's *series* cadence is per-leg while its
+*lap* cadence is steps/min, and a single bad GPS sample can put a pace value
+outside any runnable range. Both are corrected at render time.
+
 ## Live queries
+
+## Drill-down views
+
+The dashboard is hash-routed: `#/activities`, `#/activity/<id>`, `#/nights`,
+`#/night/<date>`, `#/days`, `#/day/<date>`. When he asks about a specific run,
+night or day, point him at the URL rather than retyping the numbers.
+
+`sync_details.py` fetches lap splits, time in each HR zone, weather and a
+downsampled HR/pace/elevation/cadence trace, one JSON per activity, fetched once
+and kept. `refresh.sh` tops up anything missing.
+
+**Heart-rate zones come from `data/zones.json`**, which is Garmin's own model for
+him (max 198, threshold 177, floors 99/119/139/158/178). Do not infer a max HR
+from observed peaks — that understated it as 194 and moved the intensity
+distribution from 71% to 38% in Z3, which is a completely different read on his
+training.
+
+Two unit traps already handled: Garmin's *series* cadence is per-leg while its
+*lap* cadence is steps/min, and a single bad GPS sample can put a pace value
+outside any runnable range. Both are corrected at render time.
 
 ## Live queries
 

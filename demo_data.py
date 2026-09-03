@@ -10,6 +10,7 @@ any real user so the two can never be confused.
 """
 
 import csv
+import json
 import math
 import random
 from datetime import date, timedelta
@@ -163,6 +164,80 @@ def gen():
     return acts, sleeps, dailies, readies
 
 
+def details(acts, rng):
+    """Synthetic per-activity detail, so the demo exercises the drill-down views."""
+    out = ROOT / "demo" / "data" / "details"
+    out.mkdir(parents=True, exist_ok=True)
+    for p in out.glob("*.json"):
+        p.unlink()
+    floors = [99, 119, 139, 158, 178]
+    n = 0
+    for a in acts:
+        if a["type"] != "running" or not a["distance_km"]:
+            continue
+        km, pace, hr = a["distance_km"], a["pace_min_km"], a["avg_hr"]
+        laps = []
+        for i in range(int(km) + 1):
+            d = 1.0 if i < int(km) else round(km - int(km), 2)
+            if d < 0.05:
+                continue
+            pw = pace * rng.uniform(0.94, 1.07)
+            lh = hr * rng.uniform(0.95, 1.05)
+            laps.append({
+                "i": i + 1, "km": round(d, 2), "sec": round(d * pw * 60),
+                "pace": round(pw, 2), "gap": round(pw * rng.uniform(0.97, 1.02), 2),
+                "hr": round(lh), "maxhr": round(lh + rng.uniform(5, 14)),
+                "cad": round(rng.uniform(168, 180)),
+                "elev": round(rng.uniform(0, 9)), "drop": round(rng.uniform(0, 9)),
+                "pwr": round(rng.uniform(260, 340)),
+                "stride": round(rng.uniform(105, 125)),
+                "gct": round(rng.uniform(240, 285)),
+                "vo": round(rng.uniform(7.5, 10.5), 1),
+                "vr": round(rng.uniform(6.5, 8.5), 1),
+            })
+        pts = 160
+        series = {"dist": [], "hr": [], "spd": [], "elev": [], "cad": []}
+        for j in range(pts):
+            f = j / (pts - 1)
+            series["dist"].append(round(km * 1000 * f))
+            warm = min(1.0, f * 6)
+            series["hr"].append(round(hr * (0.62 + 0.38 * warm)
+                                      + rng.uniform(-4, 4)))
+            series["spd"].append(round(1000 / (pace * 60)
+                                       * rng.uniform(0.93, 1.06), 2))
+            series["elev"].append(round(12 + 9 * math.sin(f * 6) + rng.uniform(-2, 2), 1))
+            series["cad"].append(round(rng.uniform(83, 90)))
+        secs = km * pace * 60
+        z = [0.08, 0.34, 0.42, 0.13, 0.03] if hr > 160 else [0.16, 0.52, 0.28, 0.04, 0.0]
+        rec = {
+            "activity_id": a["activity_id"], "date": a["date"], "name": a["name"],
+            "type": a["type"], "laps": laps, "series": series,
+            "zones": [{"z": i + 1, "sec": round(secs * z[i]), "lo": floors[i]}
+                      for i in range(5)],
+            "weather": {"tempC": round(rng.uniform(6, 24), 1),
+                        "feelsC": round(rng.uniform(5, 25), 1),
+                        "humidity": round(rng.uniform(45, 88)),
+                        "wind": round(rng.uniform(3, 22)),
+                        "windDir": rng.choice(["n", "ne", "e", "se", "s", "sw", "w", "nw"]),
+                        "desc": rng.choice(["Clear", "Partly Cloudy", "Overcast",
+                                            "Light Rain"])},
+            "summary": {"gapPace": round(pace * 0.99, 2), "minHr": round(hr * 0.55),
+                        "steps": round(km * 1000 / 1.15),
+                        "movingSec": round(km * pace * 60),
+                        "elapsedSec": round(km * pace * 60 * 1.02),
+                        "teLabel": "AEROBIC_BASE",
+                        "aeMsg": "IMPROVING_AEROBIC_BASE",
+                        "bbDelta": -round(rng.uniform(8, 26)),
+                        "water": round(km * 95)},
+        }
+        (out / f"{a['activity_id']}.json").write_text(
+            json.dumps(rec, separators=(",", ":")))
+        n += 1
+    (ROOT / "demo" / "data" / "zones.json").write_text(json.dumps(
+        {"maxHr": 190, "restingHr": 46, "lthr": 170, "floors": floors}, indent=1))
+    print(f"  details/: {n} activity files + zones.json")
+
+
 def write(rows, name, cols):
     OUT.mkdir(parents=True, exist_ok=True)
     with open(OUT / name, "w", newline="") as f:
@@ -180,3 +255,4 @@ if __name__ == "__main__":
     write(s, "sleep.csv", G.SLEEP_COLS)
     write(d, "daily.csv", G.DAILY_COLS)
     write(r, "readiness.csv", G.READINESS_COLS)
+    details(a, random.Random(SEED + 1))

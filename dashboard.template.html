@@ -58,8 +58,10 @@ h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
 
 /* ---- stat row ---- */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));
-  gap:1px;background:var(--rule);border:1px solid var(--rule);margin-bottom:52px}
-.stat{background:var(--panel);padding:17px 18px 15px}
+  border-top:1px solid var(--rule);border-left:1px solid var(--rule);
+  margin-bottom:52px}
+.stat{background:var(--panel);padding:17px 18px 15px;
+  border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}
 .stat .k{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
   letter-spacing:.1em;color:var(--ink-3);margin-bottom:9px}
 .stat .v{font-family:var(--display);font-weight:700;font-size:31px;
@@ -144,6 +146,71 @@ svg{display:block;width:100%;height:auto;overflow:visible}
   font-family:var(--mono);font-size:11.5px;color:var(--ink-3)}
 .wk-extra b{color:var(--ink-2);font-weight:500}
 
+/* ---- drill-down views ---- */
+.nav{display:flex;gap:2px;margin:0 0 26px;border-bottom:1px solid var(--rule);
+  flex-wrap:wrap}
+.nav a{font-family:var(--mono);font-size:11.5px;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--ink-3);text-decoration:none;padding:9px 13px;
+  border-bottom:2px solid transparent;margin-bottom:-1px}
+.nav a:hover{color:var(--ink)}
+.nav a.on{color:var(--ink);border-bottom-color:var(--petrol)}
+.back{font-family:var(--mono);font-size:11.5px;color:var(--petrol);
+  text-decoration:none;display:inline-block;margin-bottom:14px}
+.back:hover{text-decoration:underline}
+.dhead{border-bottom:1px solid var(--rule);padding-bottom:16px;margin-bottom:22px}
+.dhead h1{font-family:var(--display);font-weight:700;font-size:clamp(24px,3.6vw,33px);
+  letter-spacing:-.02em;line-height:1.12;margin:0 0 7px}
+.dhead .meta{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+.dhead .meta b{color:var(--ink-2);font-weight:500}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(122px,1fr));
+  border-top:1px solid var(--rule);border-left:1px solid var(--rule);
+  margin-bottom:24px}
+.tile{background:var(--panel);padding:13px 14px;
+  border-right:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.tile .k{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;
+  letter-spacing:.09em;color:var(--ink-3);margin-bottom:6px}
+.tile .v{font-family:var(--display);font-weight:700;font-size:21px;line-height:1;
+  letter-spacing:-.015em;font-variant-numeric:tabular-nums}
+.tile .v small{font-size:12px;font-weight:600;color:var(--ink-3);letter-spacing:0}
+.tile .v.txt{font-size:14px;line-height:1.3;letter-spacing:0;word-break:break-word}
+.tile .sub{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:5px}
+.tbl-wrap{overflow-x:auto;background:var(--panel);border:1px solid var(--rule)}
+table.dt{width:100%;border-collapse:collapse;font-family:var(--mono);
+  font-size:12px;font-variant-numeric:tabular-nums}
+table.dt th{position:sticky;top:0;background:var(--panel);text-align:right;
+  font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);
+  padding:11px 12px;border-bottom:1px solid var(--rule);white-space:nowrap;
+  font-weight:600;cursor:pointer;user-select:none}
+table.dt th:first-child,table.dt td:first-child{text-align:left}
+table.dt th.nos{cursor:default}
+table.dt th:hover:not(.nos){color:var(--ink)}
+table.dt th.sorted::after{content:" \2193";color:var(--petrol)}
+table.dt th.sorted.asc::after{content:" \2191"}
+table.dt td{text-align:right;padding:9px 12px;border-bottom:1px solid var(--rule-2);
+  color:var(--ink-2);white-space:nowrap}
+table.dt tbody tr:hover td{background:var(--rule-2)}
+table.dt td.s{color:var(--ink);font-weight:500}
+table.dt a{color:var(--petrol);text-decoration:none}
+table.dt a:hover{text-decoration:underline}
+table.dt tr:last-child td{border-bottom:0}
+.pacebar{position:relative;height:16px;min-width:70px;background:var(--rule-2);
+  border-radius:2px;overflow:hidden;display:block}
+.pacebar i{position:absolute;inset:0 auto 0 0;background:var(--petrol);display:block}
+.zbar{display:grid;grid-template-columns:74px 1fr 168px;gap:12px;align-items:center;
+  padding:6px 0;font-family:var(--mono);font-size:11.5px;color:var(--ink-2)}
+.zbar .t{height:17px;background:var(--rule-2);border-radius:2px;overflow:hidden}
+.zbar .t i{display:block;height:100%;border-radius:2px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.filters button{font-family:var(--mono);font-size:11px;text-transform:uppercase;
+  letter-spacing:.07em;padding:6px 11px;border:1px solid var(--rule);
+  background:var(--panel);color:var(--ink-3);border-radius:2px;cursor:pointer}
+.filters button.on{background:var(--petrol);border-color:var(--petrol);color:#fff}
+.filters button:hover:not(.on){color:var(--ink);border-color:var(--ink-3)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px}
+@media(max-width:820px){.grid2{grid-template-columns:1fr}}
+.empty{font-family:var(--mono);font-size:12px;color:var(--ink-3);padding:26px 0}
+.hidden{display:none!important}
+
 /* ---- tooltip ---- */
 #tip{position:fixed;pointer-events:none;opacity:0;transition:opacity .1s;
   background:var(--ink);color:var(--paper);font-family:var(--mono);font-size:11.5px;
@@ -176,6 +243,16 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
 
 <div class="wrap">
 
+<nav class="nav" id="nav">
+  <a href="#/" data-r="/">Overview</a>
+  <a href="#/activities" data-r="/activities">Activities</a>
+  <a href="#/nights" data-r="/nights">Sleep</a>
+  <a href="#/days" data-r="/days">Days</a>
+</nav>
+
+<div id="detail" class="hidden"></div>
+
+<div id="overview">
 <header class="clock" id="clock"></header>
 
 <div class="verdict" id="verdict"></div>
@@ -375,12 +452,15 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
   </ol>
 </section>
 
+</div><!-- /overview -->
+
 <footer>
   Generated from 12 months of Garmin Connect data held locally in
   <span class="mono">~/dev/garmin/data</span> &mdash; {{runs}} runs, {{daily_n}} daily records,
   {{sleep_n}} sleep nights, {{ready_n}} readiness scores.<br>
   Efficiency figures are terrain-corrected; resting HR excludes {{unworn_n}} daytime-derived
-  values. Heart-rate zones assume a 194 bpm maximum, the highest observed in the period.
+  values. Heart-rate zones are Garmin's own for this athlete, not inferred from
+  observed peaks.
 </footer>
 </div>
 <div id="tip" role="status"></div>
@@ -404,6 +484,496 @@ function hoverable(node, text) {
   node.addEventListener("mouseenter", show);
   node.addEventListener("mouseleave", () => tip.style.opacity = 0);
 }
+
+
+/* =================== drill-down views =================== */
+const ZD = D.zones_def;
+const ZN = ["Z1 Easy", "Z2 Aerobic", "Z3 Tempo", "Z4 Threshold", "Z5 VO₂"];
+const ZC = ["var(--ink-3)", "var(--petrol)", "var(--petrol)", "var(--clay)", "var(--clay)"];
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g,
+  c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const num = (v, d = 1) => v == null || isNaN(v) ? "—" : Number(v).toFixed(d);
+const hms = s => {
+  if (s == null) return "—";
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = Math.round(s % 60);
+  return h ? h + ":" + String(m).padStart(2, "0") + ":" + String(x).padStart(2, "0")
+           : m + ":" + String(x).padStart(2, "0");
+};
+const dfmt = s => new Date(s + "T00:00:00").toLocaleDateString("en-GB",
+  { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+const zoneOf = hr => { let z = 0; ZD.floors.forEach((f, i) => { if (hr >= f) z = i; }); return z; };
+const tidy = s => String(s || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+function tile(k, v, sm, sub) {
+  // Long words (training status) blow out the 21px display size.
+  const long = typeof v === "string" && !sm && v.length > 7;
+  return '<div class="tile"><div class="k">' + k + '</div><div class="v'
+    + (long ? " txt" : "") + '">' + v
+    + (sm ? "<small>" + sm + "</small>" : "") + "</div>"
+    + (sub ? '<div class="sub">' + sub + "</div>" : "") + "</div>";
+}
+
+/* ---- a small line chart, shared by every detail view ---- */
+function lineChart(host, opts) {
+  const { pts, label, unit, color, fmt, invert, xs, xlabel } = opts;
+  const W = 900, H = opts.height || 190, L = 56, R = 18, T = 16, B = 34;
+  const iw = W - L - R, ih = H - T - B;
+  const good = pts.map((v, i) => [i, v]).filter(p => p[1] != null && !isNaN(p[1]));
+  if (good.length < 2) return "";
+  const vs = good.map(p => p[1]);
+  let lo = Math.min(...vs), hi = Math.max(...vs);
+  if (hi - lo < 1e-6) { hi = lo + 1; }
+  const pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+  const X = i => L + (i / (pts.length - 1)) * iw;
+  const Y = v => invert ? T + ((v - lo) / (hi - lo)) * ih
+                        : T + ih - ((v - lo) / (hi - lo)) * ih;
+  const f = fmt || (v => num(v, 0));
+  let g = "";
+  for (let k = 0; k <= 3; k++) {
+    const v = lo + (hi - lo) * k / 3, yy = Y(v);
+    g += '<line x1="' + L + '" x2="' + (L + iw) + '" y1="' + yy.toFixed(1)
+      + '" y2="' + yy.toFixed(1) + '" stroke="var(--grid)" stroke-width="1"/>'
+      + '<text x="' + (L - 9) + '" y="' + (yy + 4).toFixed(1) + '" text-anchor="end"'
+      + ' fill="var(--ink-3)" font-family="var(--mono)" font-size="10.5">' + f(v) + "</text>";
+  }
+  const area = "M" + X(good[0][0]).toFixed(1) + "," + (T + ih) + " "
+    + good.map(p => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ")
+    + " L" + X(good[good.length - 1][0]).toFixed(1) + "," + (T + ih) + " Z";
+  g += '<path d="' + area + '" fill="' + color + '" opacity=".10"/>';
+  g += '<polyline points="' + good.map(p => X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ")
+    + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round"/>';
+  if (xs && xs.length) {
+    [0, Math.floor(pts.length / 2), pts.length - 1].forEach(i => {
+      if (xs[i] == null) return;
+      g += '<text x="' + X(i).toFixed(1) + '" y="' + (H - B + 20)
+        + '" text-anchor="' + (i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle")
+        + '" fill="var(--ink-3)" font-family="var(--mono)" font-size="10.5">'
+        + esc(xs[i]) + "</text>";
+    });
+  }
+  return '<div class="chart" style="margin-bottom:14px"><div class="ct">' + label
+    + (unit ? " · " + unit : "") + '</div>'
+    + '<svg viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="' + esc(label)
+    + '">' + g + "</svg>"
+    + (xlabel ? '<div class="legend"><span>' + xlabel + "</span></div>" : "") + "</div>";
+}
+
+function zoneBars(zones, totalSec) {
+  const tot = totalSec || zones.reduce((a, z) => a + (z.sec || 0), 0);
+  if (!tot) return "";
+  return zones.map((z, i) => {
+    const pc = 100 * (z.sec || 0) / tot;
+    return '<div class="zbar"><span>' + ZN[i] + '</span>'
+      + '<span class="t"><i style="width:' + pc.toFixed(1) + '%;background:'
+      + ZC[i] + '"></i></span>'
+      + "<span>" + hms(z.sec) + "  ·  " + pc.toFixed(0) + "%"
+      + (z.lo ? "  ·  " + z.lo + "+ bpm" : "") + "</span></div>";
+  }).join("");
+}
+
+/* ---- sortable table ---- */
+function sortable(id, rows, cols, initial) {
+  let sk = initial, asc = false;
+  const render = () => {
+    const r = rows.slice().sort((a, b) => {
+      const x = a[sk], y = b[sk];
+      if (x == null) return 1;
+      if (y == null) return -1;
+      const c = typeof x === "string" ? x.localeCompare(y) : x - y;
+      return asc ? c : -c;
+    });
+    const el2 = document.getElementById(id);
+    if (!el2) return;
+    el2.innerHTML = '<table class="dt"><thead><tr>'
+      + cols.map(c => '<th data-k="' + c.k + '"' + (c.nos ? ' class="nos"' : "")
+        + (c.k === sk ? ' class="sorted' + (asc ? " asc" : "") + '"' : "") + ">"
+        + c.h + "</th>").join("")
+      + "</tr></thead><tbody>"
+      + (r.length ? r.map(row => "<tr>" + cols.map(c => "<td"
+          + (c.strong ? ' class="s"' : "") + ">" + c.f(row) + "</td>").join("") + "</tr>").join("")
+        : '<tr><td colspan="' + cols.length + '" class="empty">Nothing here</td></tr>')
+      + "</tbody></table>";
+    el2.querySelectorAll("th[data-k]").forEach(th => {
+      if (th.classList.contains("nos")) return;
+      th.onclick = () => { const k = th.dataset.k; if (k === sk) asc = !asc;
+        else { sk = k; asc = false; } render(); };
+    });
+  };
+  render();
+}
+
+/* ---- activities list ---- */
+function viewActivities(filter) {
+  const types = [...new Set(D.acts.map(a => a.t))];
+  const rows = D.acts.filter(a => !filter || filter === "all"
+    || (filter === "run" ? /running/.test(a.t) : a.t === filter));
+  const el2 = document.getElementById("detail");
+  el2.innerHTML = '<div class="dhead"><h1>Activities</h1>'
+    + '<div class="meta"><b>' + D.acts.length + "</b> recorded · "
+    + '<b>' + D.acts.filter(a => a.det).length + "</b> with lap detail · "
+    + "click any row for the full breakdown</div></div>"
+    + '<div class="filters" id="af">'
+    + '<button data-f="all">All</button><button data-f="run">Runs</button>'
+    + types.filter(x => !/running/.test(x)).map(x =>
+        '<button data-f="' + x + '">' + tidy(x) + "</button>").join("")
+    + "</div>" + '<div class="tbl-wrap" id="atbl"></div>';
+  document.querySelectorAll("#af button").forEach(b => {
+    if (b.dataset.f === (filter || "all")) b.classList.add("on");
+    b.onclick = () => { location.hash = "#/activities" +
+      (b.dataset.f === "all" ? "" : "/" + b.dataset.f); };
+  });
+  sortable("atbl", rows, [
+    { k: "d", h: "Date", strong: true, f: r => r.det
+        ? '<a href="#/activity/' + r.id + '">' + r.d + "</a>" : r.d },
+    { k: "n", h: "Activity", f: r => esc(r.n) },
+    { k: "t", h: "Type", f: r => tidy(r.t) },
+    { k: "km", h: "km", f: r => r.km == null ? "—" : num(r.km, 2) },
+    { k: "min", h: "Time", f: r => hms(r.min == null ? null : r.min * 60) },
+    { k: "pace", h: "Pace", f: r => r.pace == null ? "—" : pace(r.pace) },
+    { k: "hr", h: "Avg HR", f: r => num(r.hr, 0) },
+    { k: "maxhr", h: "Max HR", f: r => num(r.maxhr, 0) },
+    { k: "elev", h: "Elev m", f: r => num(r.elev, 0) },
+    { k: "load", h: "Load", f: r => num(r.load, 0) },
+    { k: "ate", h: "Aer TE", f: r => num(r.ate, 1) },
+  ], "d");
+}
+
+/* ---- one activity ---- */
+function viewActivity(id) {
+  const a = D.acts.find(x => x.id === id), det = D.detail[id];
+  const el2 = document.getElementById("detail");
+  if (!a) { el2.innerHTML = '<a class="back" href="#/activities">← Activities</a>'
+    + '<div class="empty">No such activity.</div>'; return; }
+  const s = (det && det.summary) || {}, laps = (det && det.laps) || [];
+  const day = D.dayIdx.find(x => x.date === a.d);
+  let h = '<a class="back" href="#/activities">← All activities</a>'
+    + '<div class="dhead"><h1>' + esc(a.n) + "</h1><div class=\"meta\">"
+    + dfmt(a.d) + " · <b>" + tidy(a.t) + "</b>"
+    + ' · <a href="#/day/' + a.d + '" style="color:var(--petrol)">see the whole day</a>'
+    + "</div></div>";
+
+  h += '<div class="tiles">'
+    + (a.km ? tile("Distance", num(a.km, 2), " km") : "")
+    + tile("Moving time", hms(s.movingSec || (a.min ? a.min * 60 : null)), "")
+    + (a.pace ? tile("Avg pace", pace(a.pace), " /km",
+        s.gapPace ? "grade-adj " + pace(s.gapPace) : "") : "")
+    + (a.hr ? tile("Avg HR", num(a.hr, 0), " bpm",
+        "max " + num(a.maxhr, 0) + (s.minHr ? " · min " + num(s.minHr, 0) : "")) : "")
+    + (a.elev != null ? tile("Elev gain", num(a.elev, 0), " m") : "")
+    + (a.cad ? tile("Cadence", num(a.cad, 0), " spm") : "")
+    + (a.cal ? tile("Calories", num(a.cal, 0), "") : "")
+    + (a.load ? tile("Training load", num(a.load, 0), "",
+        s.teLabel ? tidy(s.teLabel) : "") : "")
+    + (a.ate != null ? tile("Training effect", num(a.ate, 1),
+        " aer", a.ane ? num(a.ane, 1) + " anaerobic" : "") : "")
+    + (a.vo2 ? tile("VO₂max", num(a.vo2, 1), "") : "")
+    + (s.bbDelta != null ? tile("Body battery", (s.bbDelta > 0 ? "+" : "") + s.bbDelta, "") : "")
+    + (s.steps ? tile("Steps", s.steps.toLocaleString(), "") : "")
+    + "</div>";
+
+  if (s.aeMsg || s.anMsg) {
+    h += '<p class="sub">Garmin read this as <strong>' + tidy(s.aeMsg || "") + "</strong>"
+      + (s.anMsg && s.anMsg !== s.aeMsg ? " aerobically, <strong>" + tidy(s.anMsg)
+         + "</strong> anaerobically" : "") + ".</p>";
+  }
+
+  const ser = det && det.series;
+  if (ser && ser.hr) {
+    const xs = (ser.dist || []).map(d2 => d2 == null ? null : (d2 / 1000).toFixed(1) + " km");
+    h += "<h2 style=\"font-family:var(--display);font-size:12.5px;text-transform:uppercase;"
+      + "letter-spacing:.14em;margin:6px 0 12px\">Over the run</h2>";
+    h += lineChart(null, { pts: ser.hr, label: "Heart rate", unit: "bpm",
+      color: "var(--clay)", xs, xlabel: "distance covered" });
+    if (ser.spd) {
+      // Clamp to a runnable range: one bad GPS sample otherwise sets the axis.
+      const pp = ser.spd.map(v => {
+        if (!v || v <= 0.3) return null;
+        const m = 1000 / v / 60;
+        return m >= 2 && m <= 15 ? m : null;
+      });
+      h += lineChart(null, { pts: pp,
+        label: "Pace", unit: "min/km", color: "var(--petrol)", invert: true,
+        fmt: v => pace(v), xs, xlabel: "lower on the chart is faster" });
+    }
+    if (ser.elev) {
+      h += lineChart(null, { pts: ser.elev, label: "Elevation", unit: "m",
+        color: "var(--ink-3)", xs, height: 150 });
+    }
+    if (ser.cad) {
+      // Garmin's series cadence is per-leg (~81) while its lap cadence is already
+      // steps/min (~154). Double the series so the axis matches its label.
+      h += lineChart(null, { pts: ser.cad.map(v => v > 40 ? v * 2 : null),
+        label: "Cadence", unit: "steps/min", color: "var(--petrol)", xs, height: 150 });
+    }
+  }
+
+  if (det && det.zones && det.zones.length) {
+    h += '<div class="grid2"><div class="chart"><div class="ct">Time in heart-rate zone</div>'
+      + '<div class="cs">Your own Garmin zones, max ' + ZD.max + ' bpm'
+      + (ZD.lthr ? ", threshold " + ZD.lthr : "") + ".</div>"
+      + zoneBars(det.zones) + "</div>";
+    const w = det.weather;
+    h += '<div class="chart"><div class="ct">Conditions &amp; form</div>'
+      + '<div class="cs">' + (w ? esc(w.desc || "") : "Weather not recorded") + "</div>"
+      + '<table class="dt"><tbody>'
+      + (w ? "<tr><td>Temperature</td><td class=\"s\">" + num(w.tempC, 1)
+          + " °C</td></tr><tr><td>Feels like</td><td class=\"s\">"
+          + num(w.feelsC, 1) + " °C</td></tr><tr><td>Humidity</td><td class=\"s\">"
+          + num(w.humidity, 0) + "%</td></tr><tr><td>Wind</td><td class=\"s\">"
+          + num(w.wind, 0) + " km/h " + esc(w.windDir || "") + "</td></tr>" : "")
+      + (laps.length && laps[0].stride ? "<tr><td>Stride length</td><td class=\"s\">"
+          + num(laps.reduce((x, l) => x + (l.stride || 0), 0) / laps.length, 0)
+          + " cm</td></tr>" : "")
+      + (laps.length && laps[0].gct ? "<tr><td>Ground contact</td><td class=\"s\">"
+          + num(laps.reduce((x, l) => x + (l.gct || 0), 0) / laps.length, 0)
+          + " ms</td></tr>" : "")
+      + (laps.length && laps[0].vo ? "<tr><td>Vertical oscillation</td><td class=\"s\">"
+          + num(laps.reduce((x, l) => x + (l.vo || 0), 0) / laps.length, 1)
+          + " cm</td></tr>" : "")
+      + (s.water ? "<tr><td>Sweat loss est.</td><td class=\"s\">" + num(s.water, 0)
+          + " ml</td></tr>" : "")
+      + "</tbody></table></div></div>";
+  }
+
+  if (laps.length) {
+    const fastest = Math.min(...laps.map(l => l.pace).filter(Boolean));
+    const slowest = Math.max(...laps.map(l => l.pace).filter(Boolean));
+    h += "<h2 style=\"font-family:var(--display);font-size:12.5px;text-transform:uppercase;"
+      + "letter-spacing:.14em;margin:24px 0 12px\">Splits</h2>"
+      + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+      + ["Lap", "km", "Time", "Pace", "", "GAP", "Avg HR", "Max HR", "Zone",
+         "Cad", "Elev", "Power"].map(x => "<th class=\"nos\">" + x + "</th>").join("")
+      + "</tr></thead><tbody>"
+      + laps.map(l => {
+          const w2 = l.pace ? 100 * (slowest - l.pace + 0.02) / (slowest - fastest + 0.04) : 0;
+          const z = l.hr ? zoneOf(l.hr) : null;
+          return "<tr><td class=\"s\">" + l.i + "</td><td>" + num(l.km, 2) + "</td><td>"
+            + hms(l.sec) + '</td><td class="s">' + (l.pace ? pace(l.pace) : "—")
+            + '</td><td style="width:90px"><span class="pacebar"><i style="width:'
+            + Math.max(4, w2).toFixed(0) + '%"></i></span></td><td>'
+            + (l.gap ? pace(l.gap) : "—") + "</td><td>" + num(l.hr, 0) + "</td><td>"
+            + num(l.maxhr, 0) + "</td><td>" + (z == null ? "—"
+              : '<span style="color:' + ZC[z] + '">Z' + (z + 1) + "</span>")
+            + "</td><td>" + num(l.cad, 0) + "</td><td>"
+            + (l.elev == null ? "—" : "+" + num(l.elev, 0)) + "</td><td>"
+            + num(l.pwr, 0) + "</td></tr>";
+        }).join("")
+      + "</tbody></table></div>"
+      + '<div class="legend"><span>Bars compare each lap against the fastest and '
+      + "slowest of this run. GAP is grade-adjusted pace.</span></div>";
+  } else if (!det) {
+    h += '<div class="empty">Lap detail has not been fetched for this activity yet. '
+      + "Run <span class=\"mono\">sync_details.py</span>.</div>";
+  }
+
+  if (day) {
+    // Resting HR is only real on nights the watch was worn.
+    const worn = D.sleepIdx.some(s => s.date === a.d);
+    h += '<p class="sub" style="margin-top:24px">On this day: '
+      + (day.steps ? Math.round(day.steps).toLocaleString() + " steps" : "")
+      + (worn && day.resting_hr ? ", resting HR " + num(day.resting_hr, 0) : "")
+      + (day.stress_avg ? ", average stress " + num(day.stress_avg, 0) : "")
+      + '. <a href="#/day/' + a.d + '" style="color:var(--petrol)">Full day →</a></p>';
+  }
+  el2.innerHTML = h;
+}
+
+
+/* ---- nights list ---- */
+function viewNights() {
+  const el2 = document.getElementById("detail");
+  const cov = Math.round(100 * D.sleepIdx.length / D.dayIdx.length);
+  el2.innerHTML = '<div class="dhead"><h1>Sleep</h1><div class="meta"><b>'
+    + D.sleepIdx.length + "</b> nights recorded across <b>" + D.dayIdx.length
+    + "</b> days · <b>" + cov + "%</b> coverage. Only nights the watch was worn "
+    + "appear here; the rest have no overnight data at all.</div></div>"
+    + '<div class="tbl-wrap" id="ntbl"></div>';
+  sortable("ntbl", D.sleepIdx, [
+    { k: "date", h: "Night", strong: true,
+      f: r => '<a href="#/night/' + r.date + '">' + r.date + "</a>" },
+    { k: "score", h: "Score", f: r => num(r.score, 0) },
+    { k: "quality", h: "Rated", f: r => tidy(r.quality) },
+    { k: "total_h", h: "Total", f: r => num(r.total_h, 1) + " h" },
+    { k: "deep_h", h: "Deep", f: r => num(r.deep_h, 1) },
+    { k: "rem_h", h: "REM", f: r => num(r.rem_h, 1) },
+    { k: "awake_h", h: "Awake", f: r => num(r.awake_h, 1) },
+    { k: "resting_hr", h: "Rest HR", f: r => num(r.resting_hr, 0) },
+    { k: "avg_hrv", h: "HRV", f: r => num(r.avg_hrv, 0) },
+    { k: "body_battery_change", h: "BB gain", f: r => num(r.body_battery_change, 0) },
+  ], "date");
+}
+
+/* ---- one night ---- */
+function viewNight(date) {
+  const n = D.sleepIdx.find(x => x.date === date);
+  const el2 = document.getElementById("detail");
+  if (!n) { el2.innerHTML = '<a class="back" href="#/nights">← Sleep</a>'
+    + '<div class="empty">No overnight data for ' + esc(date)
+    + " — the watch was not worn.</div>"; return; }
+  const stages = [["Deep", n.deep_h, "var(--petrol)"], ["REM", n.rem_h, "var(--clay)"],
+    ["Light", n.light_h, "var(--ink-3)"], ["Awake", n.awake_h, "var(--rule)"]];
+  const tot = stages.reduce((a, s) => a + (s[1] || 0), 0) || 1;
+  const need = n.sleep_need_h, deficit = need ? need - n.total_h : null;
+  let h = '<a class="back" href="#/nights">← All nights</a>'
+    + '<div class="dhead"><h1>Night of ' + esc(date) + "</h1><div class=\"meta\">"
+    + dfmt(date) + ' · <a href="#/day/' + esc(date)
+    + '" style="color:var(--petrol)">see the whole day</a></div></div>'
+    + '<div class="tiles">'
+    + tile("Sleep score", num(n.score, 0), "", tidy(n.quality))
+    + tile("Time asleep", num(n.total_h, 1), " h",
+        need ? "need " + num(need, 1) + " h" : "")
+    + (deficit != null ? tile("Versus need", (deficit > 0 ? "−" : "+")
+        + num(Math.abs(deficit), 1), " h", deficit > 0 ? "short" : "surplus") : "")
+    + tile("Resting HR", num(n.resting_hr, 0), " bpm",
+        n.avg_hr ? "avg " + num(n.avg_hr, 0) : "")
+    + tile("Overnight HRV", num(n.avg_hrv, 0), "",
+        n.hrv_7d_avg ? "7-day " + num(n.hrv_7d_avg, 0) : "")
+    + (n.avg_respiration ? tile("Respiration", num(n.avg_respiration, 1), " /min") : "")
+    + (n.body_battery_change != null ? tile("Body battery", "+"
+        + num(n.body_battery_change, 0), "", "recharged overnight") : "")
+    + "</div>"
+    + '<div class="chart"><div class="ct">Sleep stages</div>'
+    + '<div class="cs">' + num(n.total_h, 1) + " hours in bed, broken down by stage. "
+    + "Deep and REM are the restorative fractions.</div>"
+    + '<div style="display:flex;height:34px;border-radius:3px;overflow:hidden;gap:2px">'
+    + stages.map(s => s[1] ? '<div style="width:' + (100 * s[1] / tot).toFixed(1)
+        + '%;background:' + s[2] + '"></div>' : "").join("")
+    + "</div>"
+    + stages.map(s => '<div class="zbar"><span>' + s[0] + '</span>'
+        + '<span class="t"><i style="width:' + (100 * (s[1] || 0) / tot).toFixed(1)
+        + '%;background:' + s[2] + '"></i></span><span>' + num(s[1], 2) + " h  ·  "
+        + (100 * (s[1] || 0) / tot).toFixed(0) + "%</span></div>").join("")
+    + "</div>";
+  const r = D.readyIdx[date];
+  if (r) {
+    h += '<p class="sub">Training readiness the next morning was <strong>'
+      + num(r.score, 0) + "</strong> (" + tidy(r.level) + ")"
+      + (r.feedback ? ", " + tidy(r.feedback).toLowerCase() : "")
+      + (r.rec ? ", with " + num(r.rec, 1) + " h of recovery advised" : "") + ".</p>";
+  }
+  el2.innerHTML = h;
+}
+
+/* ---- days list ---- */
+function viewDays() {
+  const el2 = document.getElementById("detail");
+  const byDay = {};
+  D.acts.forEach(a => { (byDay[a.d] = byDay[a.d] || []).push(a); });
+  const rows = D.dayIdx.map(d => {
+    const acts = byDay[d.date] || [];
+    const r = D.readyIdx[d.date] || {};
+    return Object.assign({}, d, {
+      nacts: acts.length,
+      km: acts.reduce((a, x) => a + (x.km || 0), 0) || null,
+      ready: r.score == null ? null : r.score,
+      slept: D.sleepIdx.some(s => s.date === d.date),
+    });
+  });
+  el2.innerHTML = '<div class="dhead"><h1>Days</h1><div class="meta">Every day the '
+    + "watch reported anything — <b>" + D.dayIdx.length + "</b> of them. A day with "
+    + "no activity and a present row is a genuine rest day; a missing day means the "
+    + "watch never synced.</div></div><div class=\"tbl-wrap\" id=\"dtbl\"></div>";
+  sortable("dtbl", rows, [
+    { k: "date", h: "Date", strong: true,
+      f: r => '<a href="#/day/' + r.date + '">' + r.date + "</a>" },
+    { k: "nacts", h: "Sessions", f: r => r.nacts || "rest" },
+    { k: "km", h: "km", f: r => r.km ? num(r.km, 1) : "—" },
+    { k: "steps", h: "Steps", f: r => r.steps ? Math.round(r.steps).toLocaleString() : "—" },
+    { k: "resting_hr", h: "Rest HR", f: r => r.slept ? num(r.resting_hr, 0)
+        : '<span style="color:var(--ink-3)" title="derived from daytime readings">'
+          + num(r.resting_hr, 0) + "*</span>" },
+    { k: "hrv_last_night", h: "HRV", f: r => num(r.hrv_last_night, 0) },
+    { k: "ready", h: "Readiness", f: r => num(r.ready, 0) },
+    { k: "stress_avg", h: "Stress", f: r => num(r.stress_avg, 0) },
+    { k: "body_battery_high", h: "BB high", f: r => num(r.body_battery_high, 0) },
+    { k: "training_status", h: "Status", f: r => tidy(r.training_status) || "—" },
+  ], "date");
+  el2.insertAdjacentHTML("beforeend", '<div class="legend"><span>* resting HR on a '
+    + "night the watch was not worn: Garmin derives it from daytime readings and it "
+    + "reads high. Those values are excluded from every trend on this site.</span></div>");
+}
+
+/* ---- one day ---- */
+function viewDay(date) {
+  const el2 = document.getElementById("detail");
+  const d = D.dayIdx.find(x => x.date === date);
+  const acts = D.acts.filter(a => a.d === date);
+  const night = D.sleepIdx.find(s => s.date === date);
+  const r = D.readyIdx[date] || {};
+  if (!d && !acts.length) { el2.innerHTML = '<a class="back" href="#/days">← Days</a>'
+    + '<div class="empty">Nothing recorded on ' + esc(date) + ".</div>"; return; }
+  let h = '<a class="back" href="#/days">← All days</a>'
+    + '<div class="dhead"><h1>' + dfmt(date) + "</h1><div class=\"meta\">"
+    + (acts.length ? "<b>" + acts.length + "</b> session"
+        + (acts.length > 1 ? "s" : "") : "<b>Rest day</b>")
+    + (night ? " · slept " + num(night.total_h, 1) + " h" : " · no sleep recorded")
+    + "</div></div>";
+  h += '<div class="tiles">'
+    + (d && d.steps ? tile("Steps", Math.round(d.steps).toLocaleString(), "") : "")
+    + (r.score != null ? tile("Readiness", num(r.score, 0), "", tidy(r.level)) : "")
+    + (night ? tile("Sleep", num(night.total_h, 1), " h", "score " + num(night.score, 0)) : "")
+    + (night ? tile("Resting HR", num(night.resting_hr, 0), " bpm") : "")
+    + (d && d.hrv_last_night ? tile("HRV", num(d.hrv_last_night, 0), "",
+        tidy(d.hrv_status)) : "")
+    + (d && d.stress_avg != null ? tile("Avg stress", num(d.stress_avg, 0), "") : "")
+    + (d && d.body_battery_high != null ? tile("Body battery",
+        num(d.body_battery_low, 0) + "–" + num(d.body_battery_high, 0), "") : "")
+    + (d && d.active_calories ? tile("Active kcal", num(d.active_calories, 0), "") : "")
+    + (d && (d.intensity_min_moderate != null) ? tile("Intensity min",
+        num((d.intensity_min_moderate || 0) + 2 * (d.intensity_min_vigorous || 0), 0),
+        "", num(d.intensity_min_vigorous, 0) + " vigorous") : "")
+    + (d && d.training_status ? tile("Status", tidy(d.training_status)) : "")
+    + "</div>";
+  h += "<h2 style=\"font-family:var(--display);font-size:12.5px;text-transform:uppercase;"
+    + "letter-spacing:.14em;margin:6px 0 12px\">Sessions</h2>";
+  h += acts.length ? '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+      + ["Activity", "Type", "km", "Time", "Pace", "Avg HR", "Load"].map(x =>
+          "<th class=\"nos\">" + x + "</th>").join("") + "</tr></thead><tbody>"
+      + acts.map(a => '<tr><td class="s">' + (a.det
+          ? '<a href="#/activity/' + a.id + '">' + esc(a.n) + "</a>" : esc(a.n))
+        + "</td><td>" + tidy(a.t) + "</td><td>" + (a.km ? num(a.km, 2) : "—")
+        + "</td><td>" + hms(a.min ? a.min * 60 : null) + "</td><td>"
+        + (a.pace ? pace(a.pace) : "—") + "</td><td>" + num(a.hr, 0)
+        + "</td><td>" + num(a.load, 0) + "</td></tr>").join("")
+      + "</tbody></table></div>"
+    : '<div class="empty">No sessions — a rest day. Rest is data too: this row '
+      + "exists, so the watch was worn and reported.</div>";
+  if (night) {
+    h += '<p class="sub" style="margin-top:22px">Slept <strong>'
+      + num(night.total_h, 1) + " h</strong> with a score of <strong>"
+      + num(night.score, 0) + '</strong>. <a href="#/night/' + esc(date)
+      + '" style="color:var(--petrol)">Stage breakdown →</a></p>';
+  }
+  el2.innerHTML = h;
+}
+
+/* ---- router ---- */
+function route() {
+  const hash = (location.hash || "#/").replace(/^#/, "");
+  const parts = hash.split("/").filter(Boolean);
+  const ov = document.getElementById("overview"), dt = document.getElementById("detail");
+  const top = parts[0] || "";
+  document.querySelectorAll("#nav a").forEach(a => a.classList.toggle("on",
+    a.dataset.r === "/" + (top === "activity" ? "activities"
+      : top === "night" ? "nights" : top === "day" ? "days" : top)));
+  if (!top) { ov.classList.remove("hidden"); dt.classList.add("hidden"); return; }
+  ov.classList.add("hidden"); dt.classList.remove("hidden");
+  try {
+    if (top === "activities") viewActivities(parts[1]);
+    else if (top === "activity") viewActivity(parts[1]);
+    else if (top === "nights") viewNights();
+    else if (top === "night") viewNight(parts[1]);
+    else if (top === "days") viewDays();
+    else if (top === "day") viewDay(parts[1]);
+    else { ov.classList.remove("hidden"); dt.classList.add("hidden"); }
+  } catch (e) {
+    dt.innerHTML = '<a class="back" href="#/">← Overview</a>'
+      + '<div class="empty">Could not render that view.</div>';
+  }
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
+route();
 
 /* ---------- verdict + findings ---------- */
 (function () {

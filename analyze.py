@@ -20,7 +20,22 @@ ROOT = Path(__file__).resolve().parent
 DATA = Path(os.environ.get("GARMIN_DATA_DIR") or ROOT / "data")
 
 # --- athlete constants -------------------------------------------------
-MAX_HR = 194          # highest observed in 12 months of activity data
+def _zones():
+    """Garmin's own zone model, written by sync_details.py.
+
+    Inferring a max HR from observed peaks understates it (an all-out effort is
+    rare), which shifts every zone boundary down. Prefer the real numbers.
+    """
+    p = DATA / "zones.json"
+    if p.exists():
+        import json
+        z = json.loads(p.read_text())
+        if z.get("maxHr") and z.get("floors") and all(z["floors"]):
+            return z["maxHr"], z["floors"], z.get("lthr")
+    return 194, [99, 119, 139, 158, 178], None
+
+
+MAX_HR, ZONE_FLOORS, LTHR = _zones()
 HYROX = date(2026, 12, 20)
 # Aerobic band used for the efficiency comparison. Wide enough for a decent
 # sample, narrow enough that pace is comparable across runs.
@@ -93,6 +108,18 @@ def trend(cur, base, invert=False):
     up = dv > 0
     good = (not up) if invert else up
     return dv, ("^" if up else "v") + ("" if abs(dv) > 1e-9 else "")
+
+
+ZONE_NAMES = ["Z1 easy", "Z2 aerobic", "Z3 tempo", "Z4 threshold", "Z5 VO2"]
+
+
+def zone_of(hr):
+    """Zone for a heart rate, using Garmin's own floors."""
+    z = 0
+    for i, floor in enumerate(ZONE_FLOORS):
+        if hr >= floor:
+            z = i
+    return ZONE_NAMES[z]
 
 
 def section(title):
@@ -247,9 +274,7 @@ def intensity(D):
     for r in runs:
         if not r["_hr"]:
             continue
-        p = r["_hr"] / MAX_HR * 100
-        z = ("Z1 easy" if p < 68 else "Z2 aerobic" if p < 78 else
-             "Z3 tempo" if p < 85 else "Z4 threshold" if p < 92 else "Z5 VO2")
+        z = zone_of(r["_hr"])
         zc[z] += 1
         zt[z] += r["_min"] or 0
     tot = sum(zc.values())

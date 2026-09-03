@@ -41,6 +41,7 @@ if you want live queries alongside the local mirror.
 | `week_plan.py` | This week's prescribed runs, auto-matched against what you actually did. |
 | `build_dashboard.py` | `dashboard.template.html` + CSVs &rarr; `dashboard.html`. |
 | `refresh.sh` | All of the above in order. `--no-sync` to rebuild without hitting Garmin. |
+| `sync_details.py` | Per-activity splits, HR zones, weather and a downsampled trace. One JSON per activity. |
 | `demo_data.py` | A synthetic year of data, so the dashboard can be seen without a Garmin account. |
 | `test_analyze.py` | Guards the two corrections below. Run after touching `analyze.py`. |
 
@@ -52,6 +53,8 @@ if you want live queries alongside the local mirror.
 | `data/sleep.csv` | one night | score, stage breakdown, resting HR, overnight HRV, respiration, body battery, sleep need |
 | `data/daily.csv` | one day | steps, resting HR, HRV, stress, body battery, intensity minutes, training status, VO2max, heat acclimation |
 | `data/readiness.csv` | one morning | readiness score, level, recovery time, acute load, contributing factors |
+| `data/details/<id>.json` | one activity | per-lap splits, time in each HR zone, weather, and a ~160-point trace of HR, pace, elevation, cadence, power |
+| `data/zones.json` | the athlete | Garmin's own max HR, threshold and zone floors |
 
 `data/` in this repo is one athlete's real export, published deliberately. If you
 fork this, decide for yourself &mdash; those files are a health record, and the
@@ -86,6 +89,30 @@ Sections, top to bottom:
 5. **Aerobic efficiency** &mdash; pace at fixed HR, flat vs all-terrain, beside VO2max
 6. **What is missing** &mdash; gaps measured against the race's actual demands
 7. **Long run**, **seasonal load**, **recovery & sleep**, **what to change**
+
+### Drilling in
+
+The nav across the top opens three more views, all hash-routed inside the same
+page so it stays a single file:
+
+- **Activities** &mdash; every session, sortable on any column and filterable by
+  type. Click a row for the full breakdown.
+- **Sleep** &mdash; every night the watch was actually worn, with a stage
+  breakdown per night.
+- **Days** &mdash; one row per day: sessions, steps, resting HR, HRV, readiness,
+  stress, body battery, training status. A row with no session is a genuine rest
+  day; a *missing* row means the watch never synced, which is a different thing.
+
+An **activity page** carries the summary tiles, a trace of heart rate, pace,
+elevation and cadence over the distance covered, time in each heart-rate zone,
+the weather it was run in, running dynamics (stride, ground contact, vertical
+oscillation), and a per-lap split table with grade-adjusted pace and a bar
+comparing each lap to the fastest and slowest of that run.
+
+![An individual run: traces, zones, conditions and splits](docs/activity-detail.jpg)
+
+Every page cross-links: a run points at its day, a day points at its night and
+back at its sessions.
 
 ![Volume, aerobic efficiency and VO2max](docs/dashboard-charts.jpg)
 
@@ -157,6 +184,16 @@ readings, and it runs materially high. On paired nights the two sources agree
 exactly. Read naively, a "resting HR is improving!" trend can be nothing but a
 record of how often you wore the watch. `analyze.py` reads resting HR only from
 `sleep.csv` and reports how many values it excluded.
+
+**Heart-rate zones.** Inferring a max HR from observed peaks understates it &mdash;
+an all-out effort is rare &mdash; which drags every zone boundary down with it. This
+reads Garmin's own zone model instead (`data/zones.json`). On the athlete in this
+repo the inferred 194 was really 198, and correcting it moved the intensity
+distribution from 38% to 71% in Z3: a completely different training picture.
+
+**Units.** Garmin reports lap cadence in steps/min but series cadence per-leg,
+and returns `-1` for "no data" on several wellness fields. Both are handled at
+the point of ingestion; if you add a field, check its units against the app.
 
 **Terrain.** Pace at a fixed heart rate is the cleanest read on aerobic fitness,
 but only on comparable ground. A move to hillier routes can manufacture most of

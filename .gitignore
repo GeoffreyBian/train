@@ -9,3 +9,4 @@ __pycache__/
 .env
 data/.last_sync
 insights/ARTIFACT.txt
+demo/data/details/

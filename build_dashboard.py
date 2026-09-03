@@ -111,7 +111,7 @@ def build_data():
         "days": left, "weeks": left // 7, "race": A.HYROX.isoformat(),
         "through": D.today.isoformat(), "runs": len(runs),
         "km": round(sum(r["_km"] for r in runs)),
-        "maxhr": A.MAX_HR,
+        "maxhr": A.MAX_HR, "lthr": A.LTHR,
     }
     out["stats"] = {
         "acwr": round(acwr, 2), "acute": round(acute), "chronic": round(chronic),
@@ -299,6 +299,45 @@ def build_data():
                             "than jumping."})
     out["findings"] = fnd
 
+    # --- per-activity detail for the drill-down views
+    det, index = {}, []
+    dd = A.DATA / "details"
+    for r in D.acts:
+        aid = str(r["activity_id"])
+        p = dd / f"{aid}.json"
+        row = {"id": aid, "d": r["date"], "n": (r["name"] or r["_type"])[:60],
+               "t": r["_type"], "km": r["_km"], "min": r["_min"],
+               "pace": r["_pace"], "hr": r["_hr"], "maxhr": A.f(r["max_hr"]),
+               "elev": r["_elev"], "load": r["_load"] or None,
+               "cal": A.f(r["calories"]), "cad": A.f(r["avg_cadence"]),
+               "ate": A.f(r["aerobic_te"]), "ane": A.f(r["anaerobic_te"]),
+               "vo2": A.f(r["vo2max"]), "det": p.exists()}
+        index.append(row)
+        if p.exists():
+            try:
+                det[aid] = json.loads(p.read_text())
+            except Exception:
+                pass
+    index.sort(key=lambda x: x["d"], reverse=True)
+    out["acts"] = index
+    out["detail"] = det
+    out["zones_def"] = {"max": A.MAX_HR, "floors": A.ZONE_FLOORS, "lthr": A.LTHR}
+
+    # sleep and daily, keyed by date, for the night and day views
+    out["sleepIdx"] = sorted(
+        [{k: (A.f(r[k]) if k not in ("date", "quality", "hrv_status") else r[k])
+          for k in r} for r in D.sleep],
+        key=lambda x: x["date"], reverse=True)
+    out["dayIdx"] = sorted(
+        [{k: (A.f(r[k]) if k not in ("date", "hrv_status", "training_status") else r[k])
+          for k in r} for r in D.daily],
+        key=lambda x: x["date"], reverse=True)
+    out["readyIdx"] = {r["date"]: {"score": A.f(r["score"]), "level": r["level"],
+                                   "feedback": r["feedback"],
+                                   "rec": A.f(r["recovery_time_h"]),
+                                   "acute": A.f(r["acute_load"])}
+                       for r in D.ready}
+
     out["week"] = WP.build(D)
     return out, D
 
@@ -314,6 +353,14 @@ def main():
     html = tpl.replace("__DATA__", json.dumps(data, separators=(",", ":")))
     for k, v in data["narr"].items():
         html = html.replace("{{" + k + "}}", str(v))
+    # The page is often served without a charset header; literal UTF-8 inside
+    # <script> garbles there. Escape it at build time rather than policing the
+    # template by hand.
+    a = html.index("<script>")
+    b = html.rindex("</script>")
+    html = (html[:a]
+            + "".join(c if ord(c) < 128 else "\\u%04x" % ord(c) for c in html[a:b])
+            + html[b:])
     leftover = re.findall(r"\{\{(\w+)\}\}", html)
     if leftover:
         raise SystemExit(f"template has unfilled tokens: {sorted(set(leftover))}")
