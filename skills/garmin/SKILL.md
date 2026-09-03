@@ -64,8 +64,15 @@ recent training rather than the template in `training/plan.md`. The long run
 steps +2 km from his actual 4-week ceiling and is capped, so a missed week can't
 let the target run away.
 
-Runs tick themselves off against `activities.csv`. A completed row shows the day
-he *actually* ran, not the day it was slotted for.
+Runs tick themselves off against `activities.csv`, matched most-specific-slot
+first: **long, then intervals, then tempo, then easy**. That order matters — it
+stops a long run being consumed by the easy slot and stops a hard effort being
+filed as easy. `test_analyze.py` pins it; do not reorder without running it.
+
+The tempo slot exists because his running already drifts into tempo by accident
+(71% of runs sit in Z3). Prescribing it once a week deliberately is worth more
+than three runs that all land there. A completed row shows the day he *actually*
+ran, not the day it was slotted for.
 
 Strength and station work are deliberately not on this board — Garmin has never
 recorded any, so a box for them could never resolve from data. Keep that

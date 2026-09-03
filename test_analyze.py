@@ -87,3 +87,80 @@ def test_empty_data_does_not_crash():
     D.today = date(2026, 9, 2)
     assert D.runs() == []
     assert A.mean([]) is None and A.pct(1, 0) == 0
+
+
+# --------------------------------------------------------------------------
+# Week matcher. The slot order is the whole correctness story here: a long run
+# must not be eaten by the easy slot, and a tempo effort must not be filed as
+# either intervals or easy.
+
+import week_plan as W
+
+
+def _acts(*specs):
+    """Build minimal activity dicts the way analyze.Data would."""
+    out = []
+    for i, (day, km, pace) in enumerate(specs):
+        out.append({"activity_id": 1000 + i, "name": "Run", "type": "running",
+                    "_type": "running", "_d": date(2026, 8, 31) + timedelta(days=day),
+                    "_km": km, "_pace": pace, "_hr": 150.0, "_min": km * pace,
+                    "_load": 50.0, "_elev": 10.0, "anaerobic_te": "0.0",
+                    "max_hr": "170", "date": "x"})
+    return out
+
+
+def _match(sessions, acts):
+    D = A.Data.__new__(A.Data)
+    D.acts = acts
+    D.today = date(2026, 9, 6)
+    matched, _ = W.match(D, sessions, date(2026, 8, 31))
+    return {s["id"]: (s["done"]["km"] if s["done"] else None) for s in matched}
+
+
+def test_long_run_not_eaten_by_easy_slot():
+    D = A.Data()
+    s = W.prescribe(D, date(2026, 8, 31))
+    long_km = next(x["target"]["min_km"] for x in s if x["id"] == "long")
+    got = _match(s, _acts((0, long_km + 3, 6.5), (2, 6.0, 6.5)))
+    assert got["long"] == round(long_km + 3, 1), got
+    assert got["easy"] == 6.0, got
+
+
+def test_fast_run_goes_to_intervals_not_tempo():
+    D = A.Data()
+    s = W.prescribe(D, date(2026, 8, 31))
+    got = _match(s, _acts((1, 8.0, 4.9)))
+    assert got["reps"] == 8.0 and got["tempo"] is None, got
+
+
+def test_tempo_pace_run_goes_to_tempo_not_easy():
+    """The Sept 3 case: 8.2 km at 5:26 is not easy running."""
+    D = A.Data()
+    s = W.prescribe(D, date(2026, 8, 31))
+    got = _match(s, _acts((3, 8.2, 5.44)))
+    assert got["tempo"] == 8.2, got
+    assert got["easy"] is None, got
+
+
+def test_easy_run_stays_easy():
+    D = A.Data()
+    s = W.prescribe(D, date(2026, 8, 31))
+    got = _match(s, _acts((3, 7.0, 6.9)))
+    assert got["easy"] == 7.0 and got["tempo"] is None, got
+
+
+def test_each_activity_claimed_once():
+    D = A.Data()
+    s = W.prescribe(D, date(2026, 8, 31))
+    acts = _acts((0, 20.0, 6.4), (1, 8.0, 4.8), (3, 7.5, 5.6), (4, 6.0, 7.0))
+    matched, extra = W.match(D_stub(acts), s, date(2026, 8, 31))
+    claimed = [s2["done"]["km"] for s2 in matched if s2["done"]]
+    assert len(claimed) == len(set(claimed)) == 4, claimed
+    assert extra == [], extra
+
+
+def D_stub(acts):
+    D = A.Data.__new__(A.Data)
+    D.acts = acts
+    D.today = date(2026, 9, 6)
+    return D

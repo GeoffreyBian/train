@@ -27,6 +27,10 @@ LONG_STEP = 2.0        # km added per week
 LONG_CAP = 26.0        # Phase 2b ceiling; marathon block raises this later
 WEEK_FLOOR = 20.0      # minimum weekly km before chasing bigger weeks
 REP_PACE = 5.0         # 1 km repeats: target min/km
+# A tempo effort is slower than repeats but clearly harder than easy running.
+# Anything in (REP_PACE + 0.4, TEMPO_PACE] over a sustained distance is tempo.
+TEMPO_PACE = REP_PACE + 1.0
+TEMPO_MIN_KM = 4.0
 
 
 def monday(d):
@@ -55,7 +59,7 @@ def prescribe(D, wk_start):
 
     return [
         {"id": "reps", "day": "Tue", "kind": "run_intervals",
-         "title": f"{reps} \u00d7 1 km @ {REP_PACE:.2f}/km",
+         "title": f"{reps} \u00d7 1 km @ {A.fmt_pace(REP_PACE)}/km",
          "detail": "90 s jog recovery. This is the race: eight 1 km efforts off "
                    "fatigue. Start conservative \u2014 the first sessions rebuild a "
                    "capacity you had in April.",
@@ -71,11 +75,15 @@ def prescribe(D, wk_start):
                    f"{ceiling:.1f} km ceiling \u2014 the only sustainable way back to "
                    f"the 22 km Phase 2b wants.",
          "target": {"min_km": round(long_target * 0.85, 1)}},
-        {"id": "second_easy", "day": "Sun", "kind": "run_easy",
-         "title": "Optional: easy 5\u20136 km",
-         "detail": "Only if the three above are done. A fourth run is worth less "
-                   "than making the first three happen every single week.",
-         "target": {"min_km": 4.0}, "optional": True},
+        {"id": "tempo", "day": "Sun", "kind": "run_tempo",
+         "title": f"Optional: tempo 5\u20138 km @ {A.fmt_pace(TEMPO_PACE)}/km or quicker",
+         "detail": "Only if the three above are done. Comfortably hard, HR in the "
+                   "155\u2013170 band \u2014 the pace you could hold for an hour. This is "
+                   "what most of your running already drifts into by accident; "
+                   "doing it deliberately once a week is worth more than three "
+                   "runs that all land there.",
+         "target": {"max_pace": TEMPO_PACE, "min_km": TEMPO_MIN_KM},
+         "optional": True},
     ]
 
 
@@ -95,7 +103,7 @@ def match(D, sessions, wk_start):
 
     # Most specific first, so a long run isn't consumed by the "easy" slot.
     order = sorted(sessions, key=lambda s: {"run_long": 0, "run_intervals": 1,
-                                            "run_easy": 2}[s["kind"]])
+                                            "run_tempo": 2, "run_easy": 3}[s["kind"]])
     for s in order:
         t = s["target"]
         hit = None
@@ -105,6 +113,10 @@ def match(D, sessions, wk_start):
             hit = take(lambda r: r["_type"] in A.RUN_TYPES and (r["_km"] or 0) >= t["min_km"]
                        and ((r["_pace"] or 99) <= t["max_pace"]
                             or (A.f(r.get("anaerobic_te")) or 0) >= 1.0))
+        elif s["kind"] == "run_tempo":
+            hit = take(lambda r: r["_type"] in A.RUN_TYPES
+                       and (r["_km"] or 0) >= t["min_km"]
+                       and (r["_pace"] or 99) <= t["max_pace"])
         elif s["kind"] == "run_easy":
             hit = take(lambda r: r["_type"] in A.RUN_TYPES and (r["_km"] or 0) >= t["min_km"])
         if hit:

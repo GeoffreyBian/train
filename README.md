@@ -145,6 +145,12 @@ your training actually is rather than from an aspirational template:
   capped, so a missed week can't let the target run away from you
 - **1 km repeats** are always present, because that is the unit Hyrox is made of
 - an **easy run** fills whatever the weekly floor still needs
+- an optional **tempo** run, only once the three above are done
+
+Matching runs most-specific-slot-first — long, then intervals, then tempo, then
+easy — so a long run is never consumed by the easy slot and a genuinely hard
+effort is never filed as easy. That order is the whole correctness story of the
+matcher, and `test_analyze.py` pins it.
 
 Sessions tick themselves off by matching `data/activities.csv`. Matching runs
 most-specific-slot-first (long, then intervals, then easy) so a long run is never

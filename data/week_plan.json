@@ -55,10 +55,17 @@
     "min_km": 4.0
    },
    "optional": true,
-   "done": null
+   "done": {
+    "date": "2026-09-03",
+    "day": "Thu",
+    "name": "Richmond Running",
+    "km": 8.2,
+    "pace": 5.44,
+    "hr": 155
+   }
   }
  ],
  "unclaimed": [],
- "km_done": 10.6,
+ "km_done": 18.8,
  "km_floor": 20.0
 }
