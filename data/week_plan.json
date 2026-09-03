@@ -1,0 +1,64 @@
+{
+ "week_start": "2026-08-31",
+ "week_end": "2026-09-06",
+ "week_label": "2026-W36",
+ "data_through": "2026-09-02",
+ "sessions": [
+  {
+   "id": "reps",
+   "day": "Tue",
+   "kind": "run_intervals",
+   "title": "6 \u00d7 1 km @ 5.00/km",
+   "detail": "90 s jog recovery. This is the race: eight 1 km efforts off fatigue. Start conservative \u2014 the first sessions rebuild a capacity you had in April.",
+   "target": {
+    "max_pace": 5.4,
+    "min_km": 5.0
+   },
+   "done": null
+  },
+  {
+   "id": "easy",
+   "day": "Thu",
+   "kind": "run_easy",
+   "title": "Easy run \u2014 6 km",
+   "detail": "Genuinely easy, HR under 150. Puts a floor under the week; your week-to-week swing hurts more than low mileage does.",
+   "target": {
+    "min_km": 4.199999999999999
+   },
+   "done": {
+    "date": "2026-09-01",
+    "day": "Tue",
+    "name": "Richmond Running",
+    "km": 10.6,
+    "pace": 6.13,
+    "hr": 140
+   }
+  },
+  {
+   "id": "long",
+   "day": "Sat",
+   "kind": "run_long",
+   "title": "Long run \u2014 13 km easy",
+   "detail": "Conversational, HR under 155. Up 2 km from your 11.2 km ceiling \u2014 the only sustainable way back to the 22 km Phase 2b wants.",
+   "target": {
+    "min_km": 11.0
+   },
+   "done": null
+  },
+  {
+   "id": "second_easy",
+   "day": "Sun",
+   "kind": "run_easy",
+   "title": "Optional: easy 5\u20136 km",
+   "detail": "Only if the three above are done. A fourth run is worth less than making the first three happen every single week.",
+   "target": {
+    "min_km": 4.0
+   },
+   "optional": true,
+   "done": null
+  }
+ ],
+ "unclaimed": [],
+ "km_done": 10.6,
+ "km_floor": 20.0
+}

@@ -11,6 +11,12 @@ leaves it.
 ./refresh.sh          # sync -> match this week's runs -> rebuild the dashboard
 ```
 
+![The verdict and stat tiles](docs/dashboard-verdict.jpg)
+
+*Screenshots on this page are built from `demo_data.py`, a synthetic athlete, not
+from anyone's real training. Run `./.venv/bin/python demo_data.py` and build with
+`GARMIN_DATA_DIR=demo/data` to reproduce them.*
+
 ## Quick start
 
 ```bash
@@ -35,6 +41,7 @@ if you want live queries alongside the local mirror.
 | `week_plan.py` | This week's prescribed runs, auto-matched against what you actually did. |
 | `build_dashboard.py` | `dashboard.template.html` + CSVs &rarr; `dashboard.html`. |
 | `refresh.sh` | All of the above in order. `--no-sync` to rebuild without hitting Garmin. |
+| `demo_data.py` | A synthetic year of data, so the dashboard can be seen without a Garmin account. |
 | `test_analyze.py` | Guards the two corrections below. Run after touching `analyze.py`. |
 
 ### Data
@@ -46,8 +53,11 @@ if you want live queries alongside the local mirror.
 | `data/daily.csv` | one day | steps, resting HR, HRV, stress, body battery, intensity minutes, training status, VO2max, heat acclimation |
 | `data/readiness.csv` | one morning | readiness score, level, recovery time, acute load, contributing factors |
 
-`data/` is gitignored. It is reproducible from Garmin in one command, and it is
-your health record.
+`data/` in this repo is one athlete's real export, published deliberately. If you
+fork this, decide for yourself &mdash; those files are a health record, and the
+activity names carry location. Add `data/` to `.gitignore` if you would rather
+keep yours local; everything still works, since the CSVs rebuild from Garmin in
+one command.
 
 ## The dashboard
 
@@ -77,12 +87,27 @@ Sections, top to bottom:
 6. **What is missing** &mdash; gaps measured against the race's actual demands
 7. **Long run**, **seasonal load**, **recovery & sleep**, **what to change**
 
+![Volume, aerobic efficiency and VO2max](docs/dashboard-charts.jpg)
+
 Charts are hand-drawn inline SVG with a hover layer &mdash; no chart library, no
-build step, no network dependency beyond the webfonts.
+build step, no network dependency beyond the webfonts. Every axis scales to the
+data it is given, and the verdict, the findings list and the stat pills are all
+conditional: feed it a different athlete and it reaches different conclusions
+rather than restating fixed ones.
+
+### Try it without a Garmin account
+
+```bash
+./.venv/bin/python demo_data.py
+GARMIN_DATA_DIR=demo/data ./.venv/bin/python build_dashboard.py --out demo/dashboard.html
+open demo/dashboard.html
+```
 
 To publish it as an Artifact, ask Claude to republish to the URL in
 `insights/ARTIFACT.txt`. Reusing that URL matters: a fresh publish makes a second
 artifact and orphans any ticks stored against the first.
+
+![This week's prescribed runs](docs/dashboard-week.jpg)
 
 ### The week board
 
@@ -106,6 +131,20 @@ not on a board that reports measurements.
 
 Published as an Artifact with the `db` capability, boxes can also be ticked by
 hand (stored under `ticks/<week>__<session id>`) for a run the watch missed.
+
+## Claude Code skills
+
+`skills/` holds the two [Claude Code](https://claude.com/claude-code) skills that
+drive this from conversation:
+
+- **`skills/garmin`** &mdash; runs the refresh loop, reads the CSVs, and knows about
+  the two data traps below so it does not re-derive the wrong conclusions.
+- **`skills/training`** &mdash; holds the race plan and the subjective log that the
+  Garmin data is judged against.
+
+Copy them into `~/.claude/skills/` (or a project's `.claude/skills/`) to use them.
+They are written for one athlete's setup; the paths and race details near the top
+are the parts to change.
 
 ## Two data traps this handles
 

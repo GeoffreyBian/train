@@ -1,12 +1,11 @@
-# Your health data. Reproducible from Garmin; never commit it.
-data/
-insights/
-
-# Generated
+# Generated on every refresh
 dashboard.html
+demo/dashboard.html
 __pycache__/
 *.pyc
 
-# Local environment
+# Local environment and secrets
 .venv/
 .env
+data/.last_sync
+insights/ARTIFACT.txt

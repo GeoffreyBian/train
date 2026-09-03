@@ -8,13 +8,16 @@
 
 import argparse
 import csv
+import os
 import statistics as st
 from collections import Counter, defaultdict
 from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-DATA = ROOT / "data"
+# GARMIN_DATA_DIR lets the demo build render synthetic data without touching
+# (or ever reading) the real CSVs.
+DATA = Path(os.environ.get("GARMIN_DATA_DIR") or ROOT / "data")
 
 # --- athlete constants -------------------------------------------------
 MAX_HR = 194          # highest observed in 12 months of activity data

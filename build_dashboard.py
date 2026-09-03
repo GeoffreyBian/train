@@ -7,6 +7,7 @@ Everything the page renders is computed here and injected as one JSON blob, so
 the published dashboard is never hand-edited — sync, rebuild, republish.
 """
 
+import argparse
 import json
 import re
 import statistics as st
@@ -99,6 +100,7 @@ def build_data():
     rdy = [A.f(r["score"]) for r in D.ready
            if A.f(r.get("score")) and A.d(r["date"]) > D.today - timedelta(days=30)]
     longs = [r for r in runs if r["_km"] >= 15]
+    strength = [r for r in D.acts if any(x in r["_type"] for x in A.STRENGTH_TYPES)]
     gap_days = (D.today - max(r["_d"] for r in longs)).days if longs else None
 
     def band(v, good, warn, invert=False):
@@ -123,6 +125,7 @@ def build_data():
         "rdy": round(A.mean(rdy)) if rdy else None,
         "gap_days": gap_days,
         "ceiling": round(long8, 1),
+        "strength_n": len(strength),
     }
 
     # --- narrative figures, substituted into the prose at build time.
@@ -135,7 +138,6 @@ def build_data():
     vols = [w["km"] for w in out["weekly"]]
     cv = round(st.pstdev(vols) / A.mean(vols) * 100) if vols else 0
     fast = [r for r in runs if r["_pace"] and r["_pace"] < 5.0]
-    strength = [r for r in D.acts if any(x in r["_type"] for x in A.STRENGTH_TYPES)]
     kmish = [r for r in runs if 0.8 <= (r["_km"] or 0) <= 1.5]
     by_d = defaultdict(list)
     for r in D.acts:
@@ -209,11 +211,102 @@ def build_data():
         "ready_n": str(len(D.ready)),
     }
 
+    # --- verdict and findings are CONDITIONAL. They were hardcoded, which meant
+    # the page asserted the same conclusions no matter what the data said.
+    n = out["narr"]
+    rec_ok = (not rhr or not rhr_base or A.mean(rhr) <= A.mean(rhr_base) + 2) and \
+             (not hrv or not hrv_base or A.mean(hrv) >= A.mean(hrv_base) - 4)
+    under = sess8 < 3.2 or acwr < 0.9
+    vol4 = A.mean([wk_km[k] for k in sorted(wk_km)[-4:]]) or 0
+
+    if rec_ok and under:
+        head = "The body is fine. The training is the problem."
+    elif not rec_ok and not under:
+        head = "You are absorbing more than you are recovering from."
+    elif rec_ok and not under:
+        head = "The base is there. The race-specific work is not."
+    else:
+        head = "Low volume and poor recovery at the same time."
+
+    p1 = ("Twelve months of watch data say your recovery has headroom to spare: "
+          f"resting heart rate <strong>{n['rhr']} bpm</strong>, overnight HRV "
+          f"<strong>{n['hrv']}</strong>. Nothing here looks overtrained."
+          ) if rec_ok else (
+          "Recovery is the thing to watch: resting heart rate "
+          f"<strong>{n['rhr']} bpm</strong> against a {n['rhr_base']} baseline, "
+          f"overnight HRV <strong>{n['hrv']}</strong> against {n['hrv_base']}.")
+
+    bits = [f"you are <strong>running {n['sess8']} times a week</strong> at "
+            f"{vol4:.0f} km"]
+    if acwr < 0.8:
+        bits.append(f"your seven-day load has fallen to <strong>{n['acwr']}&times; "
+                    "your 28-day average</strong>")
+    elif acwr > 1.5:
+        bits.append(f"your seven-day load has spiked to <strong>{n['acwr']}&times; "
+                    "your 28-day average</strong>")
+    if float(n["eff_loss"]) > 8:
+        bits.append(f"at the same heart rate you are {n['eff_loss']} s/km slower "
+                    "than at your peak")
+    tail = ("You are not at risk of breaking. You are at risk of arriving "
+            "underdone.") if under and rec_ok else \
+           ("The load is real; protect the recovery that is absorbing it."
+            if not rec_ok else "Keep the consistency and sharpen the specifics.")
+    p2 = "What the data says is that " + ", ".join(bits) + ". " + tail
+    out["verdict"] = {"head": head, "p1": p1, "p2": p2}
+
+    loss, raw = float(n["eff_loss"]), float(n["eff_raw_loss"])
+    if loss <= 5:
+        n["eff_sentence"] = ("Corrected for terrain there is no meaningful decline "
+                             f"&mdash; {loss:.0f} s/km off your best quarter.")
+    elif raw - loss >= 8:
+        n["eff_sentence"] = (f"Corrected for terrain the drop is <strong>{loss:.0f} "
+                             f"s/km</strong>, not {raw:.0f}.")
+    else:
+        n["eff_sentence"] = (f"The drop is <strong>{loss:.0f} s/km</strong> and "
+                             "terrain does not explain it.")
+
+    fnd = []
+    if not kmish:
+        fnd.append({"sev": "crit", "num": "0", "title": "1 km efforts, ever",
+                    "body": "Not one run in twelve months falls in the 0.8\u20131.5 km "
+                            "band. The race is that distance, eight times, on tired "
+                            "legs. You have never rehearsed the single repeating "
+                            "unit of the event."})
+    if not strength:
+        fnd.append({"sev": "crit", "num": "0",
+                    "title": "strength or station sessions logged",
+                    "body": "The plan calls for two lifting days plus a station "
+                            "circuit. Garmin has no record of any. If it is happening "
+                            "untracked it still fatigues you while staying invisible "
+                            "to readiness and load."})
+    if fast and (D.today - max(r["_d"] for r in fast)).days > 45:
+        fnd.append({"sev": "warn", "num": n["fast_gap"],
+                    "title": "days since a run under 5:00/km",
+                    "body": f"Last one was {n['fast_last']}. You have {n['fast_n']} "
+                            "sub-5:00 runs in the year, and the plan\u2019s interval "
+                            "session has not appeared in the data."})
+    if len(comp) < 12:
+        fnd.append({"sev": "warn", "num": n["comp_n"],
+                    "title": "days pairing a run with a second session",
+                    "body": "Your plan names compromised running \u2014 running hard off "
+                            "station fatigue \u2014 as the limiter for a strong result. "
+                            "Few days in the year put a run next to anything else."})
+    if long8 < 20:
+        fnd.append({"sev": "warn", "num": f"{long8:.0f}",
+                    "title": "km longest run in eight weeks",
+                    "body": "Phase 2b expects 22\u201326 km and the marathon behind it "
+                            "needs 30 km+. Build back at about 2 km a week rather "
+                            "than jumping."})
+    out["findings"] = fnd
+
     out["week"] = WP.build(D)
     return out, D
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--out", default=None, help="output path (default dashboard.html)")
+    args = ap.parse_args()
     data, D = build_data()
     tpl = (ROOT / "dashboard.template.html").read_text(encoding="utf-8")
     if "__DATA__" not in tpl:
@@ -224,7 +317,8 @@ def main():
     leftover = re.findall(r"\{\{(\w+)\}\}", html)
     if leftover:
         raise SystemExit(f"template has unfilled tokens: {sorted(set(leftover))}")
-    out = ROOT / "dashboard.html"
+    out = Path(args.out) if args.out else ROOT / "dashboard.html"
+    out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html, encoding="utf-8")
     w = data["week"]
     done = sum(1 for s in w["sessions"] if s["done"] and not s.get("optional"))

@@ -178,17 +178,7 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
 
 <header class="clock" id="clock"></header>
 
-<div class="verdict">
-  <div class="lede">The body is fine. The training is the problem.</div>
-  <p>Twelve months of watch data say your recovery has headroom to spare: resting
-  heart rate <strong>{{rhr}} bpm</strong>, overnight HRV <strong>{{hrv}}</strong> and rising.
-  Nothing here looks overtrained.</p>
-  <p>What the data does say is that you are <strong>running {{sess8}} times a week against
-  a plan built on four</strong>, your seven-day load has fallen to
-  <strong>{{acwr}}&times; your 28-day average</strong>, and at the same heart rate you
-  are {{eff_loss}} s/km slower than you were at your peak. You are not at risk of breaking. You
-  are at risk of arriving underdone.</p>
-</div>
+<div class="verdict" id="verdict"></div>
 
 <div class="stats" id="stats"></div>
 
@@ -202,9 +192,7 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
   The long run steps up <strong>2 km from your real ceiling</strong>, not to the
   22 km the plan assumes. <strong>These tick themselves off</strong> as Garmin
   data syncs, and the day shown is the day you actually ran, not the day it was
-  slotted for. Strength and station work stay in
-  <span class="mono">plan.md</span> &mdash; Garmin has never recorded any, so a box
-  here could never resolve.</p>
+  slotted for. <span id="wk-strength"></span></p>
   <div class="wk" id="week"></div>
 </section>
 
@@ -233,9 +221,8 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
   </div>
   <p class="sub">Pace at a fixed heart rate is the cleanest read on aerobic fitness.
   It has to be compared on <strong>flat runs only</strong> &mdash; your latest quarter
-  averages {{elev_hi}} m of climbing per km against {{elev_lo}} at your best, so the raw number overstates
-  the decline by more than half. Corrected for terrain the drop is
-  <strong>{{eff_loss}} s/km</strong>, not {{eff_raw_loss}}.</p>
+  averages {{elev_hi}} m of climbing per km against {{elev_lo}} at your best, so the
+  raw number can overstate the decline. {{eff_sentence}}</p>
   <div class="two">
     <div class="chart">
       <div class="ct">Pace at aerobic heart rate</div>
@@ -256,7 +243,7 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
         aria-label="VO2max by month, peaking at 56.8 in March 2026 and settling at 55.0 in September"></svg>
       <div class="legend">
         <span><i style="background:var(--petrol)"></i>VO<sub>2</sub>max</span>
-        <span><i style="background:var(--grid)"></i>Heat acclimation 14&ndash;22%</span>
+        <span><i style="background:var(--grid)"></i>Heat acclimation</span>
       </div>
     </div>
   </div>
@@ -270,43 +257,7 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
   <p class="sub">Hyrox is eight 1 km runs alternating with eight stations. Read your
   activity log against that description and three things are simply absent.</p>
 
-  <div class="finding crit">
-    <div class="stripe"></div>
-    <div class="fb">
-      <h3><span class="num">{{kmish_n}}</span> &nbsp;1 km efforts, ever</h3>
-      <p>Not one run in twelve months falls in the 0.8&ndash;1.5 km band. The race
-      is that distance, eight times, on tired legs. You have never rehearsed the
-      single repeating unit of the event.</p>
-    </div>
-  </div>
-  <div class="finding crit">
-    <div class="stripe"></div>
-    <div class="fb">
-      <h3><span class="num">{{strength_n}}</span> &nbsp;strength or station sessions logged</h3>
-      <p>The plan calls for two lifting days plus a Friday station circuit. Garmin
-      has no record of any. If it is happening untracked, it still fatigues you
-      while staying invisible to readiness and load &mdash; which is part of why
-      your load ratio reads 0.70.</p>
-    </div>
-  </div>
-  <div class="finding warn">
-    <div class="stripe"></div>
-    <div class="fb">
-      <h3><span class="num">{{fast_gap}}</span> &nbsp;days since a run under 5:00/km</h3>
-      <p>Last one was {{fast_last}}. You have {{fast_n}} sub-5:00 runs in the year and none
-      since spring, while the plan's Tuesday interval session has not appeared in
-      the data at all.</p>
-    </div>
-  </div>
-  <div class="finding warn">
-    <div class="stripe"></div>
-    <div class="fb">
-      <h3><span class="num">{{comp_n}}</span> &nbsp;days pairing a run with a second session</h3>
-      <p>Your own plan names compromised running &mdash; running hard off station
-      fatigue &mdash; as the limiter for a strong result. {{comp_n}} days in a year put a
-      run next to anything else, and most of those were incidental.</p>
-    </div>
-  </div>
+  <div id="findings"></div>
 
   <div class="chart" style="margin-top:14px">
     <div class="ct">Where your running intensity actually sits</div>
@@ -454,6 +405,18 @@ function hoverable(node, text) {
   node.addEventListener("mouseleave", () => tip.style.opacity = 0);
 }
 
+/* ---------- verdict + findings ---------- */
+(function () {
+  const v = D.verdict;
+  document.getElementById("verdict").innerHTML =
+    '<div class="lede">' + v.head + "</div><p>" + v.p1 + "</p><p>" + v.p2 + "</p>";
+
+  document.getElementById("findings").innerHTML = D.findings.map(f =>
+    '<div class="finding ' + f.sev + '"><div class="stripe"></div><div class="fb">'
+    + '<h3><span class="num">' + f.num + "</span> &nbsp;" + f.title + "</h3>"
+    + "<p>" + f.body + "</p></div></div>").join("");
+})();
+
 /* ---------- header + stat tiles ---------- */
 (function () {
   const h = D.hdr, s = D.stats;
@@ -487,6 +450,12 @@ function hoverable(node, text) {
       "HRV " + (s.hrv || "\u2014") + " \u00b7 readiness " + (s.rdy || "\u2014"),
       "good", "Headroom");
 })();
+
+document.getElementById("wk-strength").innerHTML = D.stats.strength_n === 0
+  ? "Strength and station work stay in <span class=\"mono\">plan.md</span> "
+    + "\u2014 Garmin has never recorded any, so a box here could never resolve."
+  : "Strength work is tracked separately in <span class=\"mono\">plan.md</span>; "
+    + "this board covers runs.";
 
 /* ---------- week board ---------- */
 const WK = D.week;
@@ -595,17 +564,18 @@ renderWeek();
 (function () {
   const s = document.getElementById("vol");
   const W = 940, H = 280, L = 42, R = 12, T = 16, B = 46;
-  const iw = W - L - R, ih = H - T - B, max = 40;
+  // Scale to the data: a hardcoded ceiling clips bars once volume grows.
+  const peak = Math.max(...D.weekly.map(d => d.km), 20);
+  const max = Math.ceil(peak * 1.12 / 10) * 10;
+  const step = max <= 40 ? 10 : max <= 80 ? 20 : 25;
+  const iw = W - L - R, ih = H - T - B;
   const y = v => T + ih - (v / max) * ih;
 
   s.appendChild(el("rect", { x: L, y: y(35), width: iw, height: y(25) - y(35),
     fill: "var(--grid)", opacity: .45 }));
-  const bl = el("text", { x: L + 6, y: y(35) - 6, fill: "var(--ink-3)",
-    "font-family": "var(--mono)", "font-size": 10.5 });
-  bl.textContent = "plan phase target  25\u201335 km";
-  s.appendChild(bl);
-
-  [0, 10, 20, 30, 40].forEach(v => {
+  const ticks = [];
+  for (let v = 0; v <= max; v += step) ticks.push(v);
+  ticks.forEach(v => {
     s.appendChild(el("line", { x1: L, x2: L + iw, y1: y(v), y2: y(v),
       stroke: "var(--grid)", "stroke-width": 1, opacity: v === 0 ? 1 : .55 }));
     const t = el("text", { x: L - 9, y: y(v) + 4, "text-anchor": "end",
@@ -641,11 +611,17 @@ renderWeek();
 (function () {
   const s = document.getElementById("eff");
   const W = 460, H = 260, L = 52, R = 54, T = 18, B = 44;
-  const iw = W - L - R, ih = H - T - B, lo = 5.4, hi = 6.8;
+  // Scale to the data; a fixed window drops series that sit outside it.
+  const pv = D.eff.flatMap(d => [d.flat, d.all]).filter(v => v != null);
+  const lo = Math.floor(Math.min(...pv) * 10) / 10 - 0.15;
+  const hi = Math.ceil(Math.max(...pv) * 10) / 10 + 0.15;
+  const iw = W - L - R, ih = H - T - B;
   const x = i => L + (iw / (D.eff.length - 1)) * i;
   const y = v => T + ((v - lo) / (hi - lo)) * ih;
 
-  [5.5, 6.0, 6.5].forEach(v => {
+  const et = [];
+  for (let v = Math.ceil(lo * 4) / 4; v <= hi; v += 0.25) et.push(v);
+  et.forEach(v => {
     s.appendChild(el("line", { x1: L, x2: L + iw, y1: y(v), y2: y(v),
       stroke: "var(--grid)", "stroke-width": 1 }));
     const t = el("text", { x: L - 9, y: y(v) + 4, "text-anchor": "end",
@@ -662,10 +638,14 @@ renderWeek();
       s.appendChild(el("circle", { cx: p[0], cy: p[1], r: 5.5,
         fill: c, stroke: "var(--panel)", "stroke-width": 2 }));
     });
+    // Both series can finish at nearly the same pace; nudge the labels apart.
+    const e = D.eff[D.eff.length - 1];
+    const clash = e.flat != null && Math.abs(e.flat - e.all) < (hi - lo) / 14;
+    const dy = clash ? (k === "flat" ? -5 : 13) : 4;
     const last = pts[pts.length - 1];
-    const t = el("text", { x: last[0] + 11, y: last[1] + 4, fill: c,
+    const t = el("text", { x: last[0] + 11, y: last[1] + dy, fill: c,
       "font-family": "var(--mono)", "font-size": 11.5, "font-weight": 600 });
-    t.textContent = pace(D.eff[D.eff.length - 1][k]); s.appendChild(t);
+    t.textContent = pace(e[k]); s.appendChild(t);
   });
 
   D.eff.forEach((d, i) => {
@@ -679,16 +659,25 @@ renderWeek();
       fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10.5 });
     t.textContent = d.q.replace("20", "'"); s.appendChild(t);
   });
-  const best = el("text", { x: x(1), y: y(5.56) - 15, "text-anchor": "middle",
-    fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10.5 });
-  best.textContent = "peak  5:33"; s.appendChild(best);
+  // Annotate the actual best quarter, wherever it falls.
+  const fv = D.eff.map(d => d.flat);
+  const bi = fv.indexOf(Math.min(...fv.filter(v => v != null)));
+  if (bi >= 0 && bi !== D.eff.length - 1) {   // last point is already labelled
+    const best = el("text", { x: x(bi), y: y(fv[bi]) - 15,
+      "text-anchor": bi === 0 ? "start" : "middle", fill: "var(--ink-3)",
+      "font-family": "var(--mono)", "font-size": 10.5 });
+    best.textContent = "peak  " + pace(fv[bi]); s.appendChild(best);
+  }
 })();
 
 /* ---------- vo2max ---------- */
 (function () {
   const s = document.getElementById("vo2");
   const W = 460, H = 260, L = 40, R = 34, T = 18, B = 44;
-  const iw = W - L - R, ih = H - T - B, lo = 53.5, hi = 57.5;
+  const vv = D.vo2.map(d => d.v);
+  const lo = Math.floor(Math.min(...vv)) - 0.6;
+  const hi = Math.ceil(Math.max(...vv)) + 0.6;
+  const iw = W - L - R, ih = H - T - B;
   const x = i => L + (iw / (D.vo2.length - 1)) * i;
   const y = v => T + ih - ((v - lo) / (hi - lo)) * ih;
 
@@ -702,7 +691,10 @@ renderWeek();
       fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10 });
     t.textContent = "heat"; s.appendChild(t);
   }
-  [54, 55, 56, 57].forEach(v => {
+  const vt = [];
+  for (let v = Math.ceil(lo); v <= hi; v++) vt.push(v);
+  const vstep = vt.length > 6 ? 2 : 1;
+  vt.filter((v, i) => i % vstep === 0).forEach(v => {
     s.appendChild(el("line", { x1: L, x2: L + iw, y1: y(v), y2: y(v),
       stroke: "var(--grid)", "stroke-width": 1 }));
     const t = el("text", { x: L - 9, y: y(v) + 4, "text-anchor": "end",
@@ -714,7 +706,7 @@ renderWeek();
     fill: "none", stroke: "var(--petrol)", "stroke-width": 2,
     "stroke-linejoin": "round", "stroke-linecap": "round" }));
   D.vo2.forEach((d, i) => {
-    const peak = d.v === 56.8, last = i === D.vo2.length - 1;
+    const peak = i === pk, last = i === D.vo2.length - 1;
     s.appendChild(el("circle", { cx: x(i), cy: y(d.v), r: peak || last ? 5.5 : 3,
       fill: peak || last ? "var(--petrol)" : "var(--panel)",
       stroke: "var(--petrol)", "stroke-width": 2 }));
@@ -724,15 +716,17 @@ renderWeek();
       (d.h ? "\nheat acclim. " + d.h + "%" : ""));
     s.appendChild(g);
   });
-  [[6, "56.8", -13], [12, "55.0", -13]].forEach(([i, txt, dy]) => {
-    const t = el("text", { x: x(i), y: y(D.vo2[i].v) + dy, "text-anchor": i === 12 ? "end" : "middle",
-      fill: "var(--ink)", "font-family": "var(--mono)", "font-size": 11.5, "font-weight": 600 });
-    t.textContent = txt; s.appendChild(t);
+  const pk = vv.indexOf(Math.max(...vv)), lastI = D.vo2.length - 1;
+  [...new Set([pk, lastI])].forEach(i => {
+    const t = el("text", { x: x(i), y: y(D.vo2[i].v) - 13,
+      "text-anchor": i === lastI ? "end" : "middle", fill: "var(--ink)",
+      "font-family": "var(--mono)", "font-size": 11.5, "font-weight": 600 });
+    t.textContent = D.vo2[i].v.toFixed(1); s.appendChild(t);
   });
-  ["2025-09", "2026-03", "2026-09"].forEach(m => {
-    const i = D.vo2.findIndex(d => d.m === m);
+  [0, Math.floor(lastI / 2), lastI].forEach(i => {
+    const m = D.vo2[i].m;
     const t = el("text", { x: x(i), y: H - B + 20,
-      "text-anchor": i === 0 ? "start" : i === 12 ? "end" : "middle",
+      "text-anchor": i === 0 ? "start" : i === lastI ? "end" : "middle",
       fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 10.5 });
     t.textContent = m.replace("-", "\u00b7"); s.appendChild(t);
   });
