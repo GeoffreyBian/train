@@ -92,6 +92,14 @@ night or day, point him at the URL rather than retyping the numbers.
 downsampled HR/pace/elevation/cadence trace, one JSON per activity, fetched once
 and kept. `refresh.sh` tops up anything missing.
 
+**Intensity distribution is measured, not inferred.** `analyze.zone_seconds()`
+sums Garmin's own per-activity seconds-in-zone from `data/details/`. Never bucket
+a whole run into one zone by its average HR — that hides both ends of a session
+and under-reported his Z4 by half (14% against a real 28%).
+
+**Adherence uses complete weeks only.** Including the current, partial week reads
+as a decline that has not happened.
+
 **Heart-rate zones come from `data/zones.json`**, which is Garmin's own model for
 him (max 198, threshold 177, floors 99/119/139/158/178). Do not infer a max HR
 from observed peaks — that understated it as 194 and moved the intensity
@@ -113,6 +121,14 @@ night or day, point him at the URL rather than retyping the numbers.
 `sync_details.py` fetches lap splits, time in each HR zone, weather and a
 downsampled HR/pace/elevation/cadence trace, one JSON per activity, fetched once
 and kept. `refresh.sh` tops up anything missing.
+
+**Intensity distribution is measured, not inferred.** `analyze.zone_seconds()`
+sums Garmin's own per-activity seconds-in-zone from `data/details/`. Never bucket
+a whole run into one zone by its average HR — that hides both ends of a session
+and under-reported his Z4 by half (14% against a real 28%).
+
+**Adherence uses complete weeks only.** Including the current, partial week reads
+as a decline that has not happened.
 
 **Heart-rate zones come from `data/zones.json`**, which is Garmin's own model for
 him (max 198, threshold 177, floors 99/119/139/158/178). Do not infer a max HR
