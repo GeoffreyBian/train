@@ -11,11 +11,13 @@ leaves it.
 ./refresh.sh          # sync -> match this week's runs -> rebuild the dashboard
 ```
 
-![The verdict and stat tiles](docs/dashboard-verdict.jpg)
+**[See it running on a real year of training →](https://geoffreybian.github.io/train/)**
 
-*Screenshots on this page are built from `demo_data.py`, a synthetic athlete, not
-from anyone's real training. Run `./.venv/bin/python demo_data.py` and build with
-`GARMIN_DATA_DIR=demo/data` to reproduce them.*
+Everything below is one athlete's actual Garmin export, published deliberately.
+The `data/` directory in this repo is what the live page is built from, so you
+can read the numbers and the source that produced them side by side.
+
+![The verdict and stat tiles](docs/dashboard-verdict.jpg)
 
 ## Quick start
 
@@ -114,7 +116,7 @@ comparing each lap to the fastest and slowest of that run.
 Every page cross-links: a run points at its day, a day points at its night and
 back at its sessions.
 
-![Volume, aerobic efficiency and VO2max](docs/dashboard-charts.jpg)
+![Time in each heart-rate zone](docs/dashboard-intensity.jpg)
 
 Charts are hand-drawn inline SVG with a hover layer &mdash; no chart library, no
 build step, no network dependency beyond the webfonts. Every axis scales to the
@@ -130,9 +132,13 @@ GARMIN_DATA_DIR=demo/data ./.venv/bin/python build_dashboard.py --out demo/dashb
 open demo/dashboard.html
 ```
 
-To publish it as an Artifact, ask Claude to republish to the URL in
-`insights/ARTIFACT.txt`. Reusing that URL matters: a fresh publish makes a second
-artifact and orphans any ticks stored against the first.
+`docs/index.html` is a committed copy of the built dashboard, served by GitHub
+Pages at **[geoffreybian.github.io/train](https://geoffreybian.github.io/train/)**.
+`refresh.sh` refreshes it along with everything else, so pushing publishes.
+
+To publish it as a private Claude Artifact instead, ask Claude to republish to
+the URL in `insights/ARTIFACT.txt`. Reusing that URL matters: a fresh publish
+makes a second artifact and orphans any ticks stored against the first.
 
 ![This week's prescribed runs](docs/dashboard-week.jpg)
 

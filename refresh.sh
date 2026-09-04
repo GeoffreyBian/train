@@ -42,6 +42,9 @@ $PY week_plan.py --json >/dev/null
 echo "==> Rebuilding dashboard"
 $PY build_dashboard.py || exit 1
 
+# docs/index.html is what GitHub Pages serves; keep it in step with the build.
+cp dashboard.html docs/index.html 2>/dev/null && echo "   docs/index.html updated"
+
 echo
 echo "==> Checks"
 $PY -m pytest test_analyze.py -q 2>&1 | tail -3

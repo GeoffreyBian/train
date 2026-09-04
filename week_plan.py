@@ -68,7 +68,7 @@ def prescribe(D, wk_start):
          "title": f"Easy run \u2014 {easy_km:.0f} km",
          "detail": "Genuinely easy, HR under 150. Puts a floor under the week; "
                    "your week-to-week swing hurts more than low mileage does.",
-         "target": {"min_km": easy_km * 0.7}},
+         "target": {"min_km": round(easy_km * 0.7, 1)}},
         {"id": "long", "day": "Sat", "kind": "run_long",
          "title": f"Long run \u2014 {long_target:.0f} km easy",
          "detail": f"Conversational, HR under 155. Up {LONG_STEP:.0f} km from your "

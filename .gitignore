@@ -1,6 +1,8 @@
 # Generated on every refresh
 dashboard.html
+!docs/index.html
 demo/dashboard.html
+!docs/index.html
 __pycache__/
 *.pyc
 

@@ -338,11 +338,8 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
     <div class="ct">Where your running intensity actually sits</div>
     <div class="cs" id="zsub"></div>
     <svg id="zones" viewBox="0 0 940 190" role="img"
-      aria-label="Intensity distribution: 54 percent Z2 aerobic, 38 percent Z3 tempo, 5 percent Z4 threshold, no Z5"></svg>
-    <div class="legend"><span>Nearly everything lands in the middle. There is no
-      genuine speed end to this distribution, and 38% in Z3 is the classic
-      grey zone &mdash; too hard to recover from, too easy to drive adaptation.</span>
-    </div>
+      aria-label="Time in each heart-rate zone, measured across all recorded runs"></svg>
+    <div class="legend" id="zlegend"></div>
   </div>
 </section>
 
@@ -1269,6 +1266,7 @@ renderWeek();
       fill: "var(--ink-3)", "font-family": "var(--mono)", "font-size": 11 });
     t.textContent = v; s.appendChild(t);
   });
+  const pk = vv.indexOf(Math.max(...vv)), lastI = D.vo2.length - 1;
   const pts = D.vo2.map((d, i) => [x(i), y(d.v)]);
   s.appendChild(el("polyline", { points: pts.map(p => p.join(",")).join(" "),
     fill: "none", stroke: "var(--petrol)", "stroke-width": 2,
@@ -1284,7 +1282,6 @@ renderWeek();
       (d.h ? "\nheat acclim. " + d.h + "%" : ""));
     s.appendChild(g);
   });
-  const pk = vv.indexOf(Math.max(...vv)), lastI = D.vo2.length - 1;
   [...new Set([pk, lastI])].forEach(i => {
     const t = el("text", { x: x(i), y: y(D.vo2[i].v) - 13,
       "text-anchor": i === lastI ? "end" : "middle", fill: "var(--ink)",
@@ -1303,35 +1300,44 @@ renderWeek();
 /* ---------- zones ---------- */
 (function () {
   const s = document.getElementById("zones");
-  const W = 940, H = 190, L = 118, R = 60, T = 12;
-  const iw = W - L - R, rowH = 32, total = D.zones.reduce((a, z) => a + z.n, 0);
+  const W = 940, H = 190, L = 132, R = 96, T = 12;
+  const iw = W - L - R, rowH = 32;
+  const maxPct = Math.max(...D.zones.map(z => z.pct), 10);
   D.zones.forEach((d, i) => {
-    const yy = T + i * rowH, w = (d.n / 50) * iw;
+    const yy = T + i * rowH, w = (d.pct / maxPct) * iw;
     const lab = el("text", { x: L - 14, y: yy + 17, "text-anchor": "end",
-      fill: "var(--ink)", "font-family": "var(--mono)", "font-size": 12, "font-weight": 500 });
-    lab.textContent = d.z + "  " + d.l; s.appendChild(lab);
-    const rng = el("text", { x: L - 14, y: yy + 17, "text-anchor": "end",
-      fill: "transparent", "font-size": 1 }); s.appendChild(rng);
-    if (d.n > 0) {
+      fill: "var(--ink)", "font-family": "var(--mono)", "font-size": 12,
+      "font-weight": 500 });
+    lab.textContent = d.z + "  " + d.l;
+    s.appendChild(lab);
+    if (d.pct > 0) {
       const g = el("g", {});
-      g.appendChild(el("rect", { x: L, y: yy + 3, width: Math.max(4, w), height: 22,
-        fill: i >= 3 ? "var(--clay)" : "var(--petrol)", rx: 4, ry: 4 }));
-      g.appendChild(el("rect", { x: L, y: yy + 3, width: Math.min(5, w), height: 22,
-        fill: i >= 3 ? "var(--clay)" : "var(--petrol)" }));
-      hoverable(g, d.z + " " + d.l + "  " + d.r + "\n" + d.n + " runs  \u00b7  " +
-        Math.round(100 * d.n / total) + "% of running");
+      g.appendChild(el("rect", { x: L, y: yy + 3, width: Math.max(4, w),
+        height: 22, fill: i >= 3 ? "var(--clay)" : "var(--petrol)", rx: 4, ry: 4 }));
+      g.appendChild(el("rect", { x: L, y: yy + 3, width: Math.min(5, w),
+        height: 22, fill: i >= 3 ? "var(--clay)" : "var(--petrol)" }));
+      hoverable(g, d.z + " " + d.l + "  " + d.r + "\n"
+        + (d.sec / 3600).toFixed(1) + " h  \u00b7  " + d.pct + "% of running time");
       s.appendChild(g);
     }
     const v = el("text", { x: L + Math.max(4, w) + 11, y: yy + 19,
       fill: "var(--ink-2)", "font-family": "var(--mono)", "font-size": 11.5 });
-    v.textContent = d.n === 0 ? "0 runs" : d.n + " runs \u00b7 " + Math.round(100 * d.n / total) + "%";
+    v.textContent = (d.sec / 3600).toFixed(1) + " h \u00b7 " + d.pct + "%";
     s.appendChild(v);
   });
 })();
 
 document.getElementById("zsub").textContent =
-  D.hdr.runs + " runs by average heart rate, against a "
-  + D.hdr.maxhr + " bpm maximum.";
+  "Measured seconds in each zone across " + D.zoneMeta.runs + " runs \u2014 "
+  + D.zoneMeta.hours + " hours of running \u2014 using Garmin's own zone floors. "
+  + "Not runs bucketed by their average heart rate, which hides both ends.";
+
+document.getElementById("zlegend").innerHTML = "<span>Only <strong>"
+  + D.zoneMeta.easy + "%</strong> of your running time is genuinely easy (Z1\u20132), "
+  + "against the 75\u201380% a polarised build wants. <strong>" + D.zoneMeta.mid
+  + "%</strong> sits in Z3 \u2014 too hard to recover from, too easy to drive "
+  + "adaptation \u2014 and <strong>" + D.zoneMeta.hard + "%</strong> is hard. That is "
+  + "close to the inverse of the distribution you want.</span>";
 
 /* ---------- long runs ---------- */
 (function () {

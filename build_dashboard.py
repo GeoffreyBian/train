@@ -61,17 +61,25 @@ def build_data():
     out["vo2"] = [{"m": k, "v": max(mv[k]), "h": max(heat[k]) if heat.get(k) else 0}
                   for k in sorted(mv)]
 
-    zc = Counter()
-    for r in runs:
-        if r["_hr"]:
-            p = r["_hr"] / A.MAX_HR * 100
-            zc["Z1" if p < 68 else "Z2" if p < 78 else "Z3" if p < 85
-               else "Z4" if p < 92 else "Z5"] += 1
-    meta = {"Z1": ("Easy", "<68%"), "Z2": ("Aerobic", "68–78%"),
-            "Z3": ("Tempo", "78–85%"), "Z4": ("Threshold", "85–92%"),
-            "Z5": ("VO₂", "92%+")}
-    out["zones"] = [{"z": z, "l": meta[z][0], "r": meta[z][1], "n": zc[z]}
-                    for z in ["Z1", "Z2", "Z3", "Z4", "Z5"]]
+    # Measured seconds in each zone, not runs bucketed by their average HR.
+    # Averaging a whole run into one zone hides both ends of the session; on
+    # this athlete it under-reported Z4 by half.
+    secs, zex, zap = A.zone_seconds(D)
+    floors = A.ZONE_FLOORS
+    lbl = ["Easy", "Aerobic", "Tempo", "Threshold", "VO\u2082"]
+    ztot = sum(secs.values()) or 1
+    out["zones"] = [{"z": f"Z{i + 1}", "l": lbl[i],
+                     "r": (f"{floors[i]}-{floors[i + 1] - 1} bpm"
+                           if i + 1 < len(floors) else f"{floors[i]}+ bpm"),
+                     "sec": round(secs[A.ZONE_NAMES[i]]),
+                     "pct": round(100 * secs[A.ZONE_NAMES[i]] / ztot)}
+                    for i in range(5)]
+    out["zoneMeta"] = {"runs": zex, "approx": zap, "hours": round(ztot / 3600),
+                       "easy": round(100 * (secs[A.ZONE_NAMES[0]]
+                                            + secs[A.ZONE_NAMES[1]]) / ztot),
+                       "mid": round(100 * secs[A.ZONE_NAMES[2]] / ztot),
+                       "hard": round(100 * (secs[A.ZONE_NAMES[3]]
+                                            + secs[A.ZONE_NAMES[4]]) / ztot)}
 
     out["longruns"] = [{"d": r["_d"].isoformat(), "km": round(r["_km"], 1),
                         "p": round(r["_pace"], 2)} for r in runs if r["_km"] >= 15]
@@ -87,9 +95,12 @@ def build_data():
     acute = sum(by_day.get(D.today - timedelta(days=i), 0) for i in range(7))
     chronic = sum(by_day.get(D.today - timedelta(days=i), 0) for i in range(28)) / 4
     acwr = acute / chronic if chronic else 0
-    last8 = sorted(wk_km)[-8:]
+    curwk = A.week(D.today)
+    complete = [k for k in sorted(wk_km) if k != curwk]
+    last8 = complete[-8:]
     sess8 = A.mean([wk_n[k] for k in last8]) or 0
-    long8 = max((wk_long[k] for k in last8), default=0)
+    # The ceiling should include this week — a long run done today still counts.
+    long8 = max((wk_long[k] for k in sorted(wk_km)[-8:]), default=0)
     cut = D.today - timedelta(days=60)
     rhr = [A.f(r["resting_hr"]) for r in D.sleep
            if A.f(r.get("resting_hr")) and A.d(r["date"]) > cut] or \
@@ -206,6 +217,7 @@ def build_data():
         "unworn_avg": f"{A.mean(unworn):.0f}" if unworn else "\u2014",
         "unworn_delta": (f"{A.mean(unworn) - A.mean(rhr):.0f}"
                          if unworn and rhr else "\u2014"),
+        "rhr_n": str(len(rhr)), "hrv_n": str(len(hrv)),
         "runs": str(len(runs)),
         "daily_n": str(len(D.daily)),
         "ready_n": str(len(D.ready)),

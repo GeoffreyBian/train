@@ -8,7 +8,7 @@
    "id": "reps",
    "day": "Tue",
    "kind": "run_intervals",
-   "title": "6 \u00d7 1 km @ 5.00/km",
+   "title": "6 \u00d7 1 km @ 5:00/km",
    "detail": "90 s jog recovery. This is the race: eight 1 km efforts off fatigue. Start conservative \u2014 the first sessions rebuild a capacity you had in April.",
    "target": {
     "max_pace": 5.4,
@@ -23,7 +23,7 @@
    "title": "Easy run \u2014 6 km",
    "detail": "Genuinely easy, HR under 150. Puts a floor under the week; your week-to-week swing hurts more than low mileage does.",
    "target": {
-    "min_km": 4.199999999999999
+    "min_km": 4.2
    },
    "done": {
     "date": "2026-09-01",
@@ -46,12 +46,13 @@
    "done": null
   },
   {
-   "id": "second_easy",
+   "id": "tempo",
    "day": "Sun",
-   "kind": "run_easy",
-   "title": "Optional: easy 5\u20136 km",
-   "detail": "Only if the three above are done. A fourth run is worth less than making the first three happen every single week.",
+   "kind": "run_tempo",
+   "title": "Optional: tempo 5\u20138 km @ 6:00/km or quicker",
+   "detail": "Only if the three above are done. Comfortably hard, HR in the 155\u2013170 band \u2014 the pace you could hold for an hour. This is what most of your running already drifts into by accident; doing it deliberately once a week is worth more than three runs that all land there.",
    "target": {
+    "max_pace": 6.0,
     "min_km": 4.0
    },
    "optional": true,

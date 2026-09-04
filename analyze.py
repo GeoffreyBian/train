@@ -8,6 +8,7 @@
 
 import argparse
 import csv
+import json
 import os
 import statistics as st
 from collections import Counter, defaultdict
@@ -120,6 +121,39 @@ def zone_of(hr):
         if hr >= floor:
             z = i
     return ZONE_NAMES[z]
+
+
+def zone_seconds(D, runs_only=True):
+    """Actual seconds in each HR zone, summed from Garmin's own per-activity data.
+
+    Bucketing a whole run by its average heart rate is badly wrong: a session
+    that averages Z3 spends real time in Z2 and Z4, and averaging hides both.
+    On this athlete it under-reported Z4 by half. Falls back to the average-HR
+    bucket only for activities with no detail file.
+    """
+    det = DATA / "details"
+    secs = {z: 0.0 for z in ZONE_NAMES}
+    exact = approx = 0
+    src = D.runs() if runs_only else D.acts
+    for r in src:
+        p = det / f"{r['activity_id']}.json"
+        used = False
+        if p.exists():
+            try:
+                zs = json.loads(p.read_text()).get("zones") or []
+                if sum(z.get("sec") or 0 for z in zs) > 0:
+                    for z in zs:
+                        i = (z.get("z") or 0) - 1
+                        if 0 <= i < len(ZONE_NAMES):
+                            secs[ZONE_NAMES[i]] += z.get("sec") or 0
+                    exact += 1
+                    used = True
+            except Exception:
+                pass
+        if not used and r["_hr"] and r["_min"]:
+            secs[zone_of(r["_hr"])] += r["_min"] * 60
+            approx += 1
+    return secs, exact, approx
 
 
 def section(title):
@@ -270,24 +304,28 @@ def vo2_and_heat(D):
 def intensity(D):
     section("INTENSITY DISTRIBUTION")
     runs = D.runs()
-    zc, zt = Counter(), defaultdict(float)
-    for r in runs:
-        if not r["_hr"]:
-            continue
-        z = zone_of(r["_hr"])
-        zc[z] += 1
-        zt[z] += r["_min"] or 0
-    tot = sum(zc.values())
-    for z in ["Z1 easy", "Z2 aerobic", "Z3 tempo", "Z4 threshold", "Z5 VO2"]:
-        print(f"  {z:13s} {zc[z]:3d} runs {pct(zc[z], tot):3d}%  "
-              f"{zt[z] / 60:5.1f}h  {bar(zc[z], 1)}")
-    hard = zc["Z4 threshold"] + zc["Z5 VO2"]
-    print(f"\n  hard running (Z4+)  {hard}/{tot} runs ({pct(hard, tot)}%)")
+    secs, exact, approx = zone_seconds(D)
+    tot = sum(secs.values())
+    if not tot:
+        print("  no heart-rate data")
+        return 0, None
+    print(f"  measured time in zone across {exact} runs"
+          + (f" (+{approx} estimated from average HR)" if approx else ""))
+    print(f"  {'zone':14s} {'hours':>7s} {'share':>7s}")
+    for z in ZONE_NAMES:
+        print(f"  {z:14s} {secs[z] / 3600:7.1f} {100 * secs[z] / tot:6.0f}%  "
+              f"{bar(100 * secs[z] / tot, 4)}")
+    easy = secs[ZONE_NAMES[0]] + secs[ZONE_NAMES[1]]
+    hard = secs[ZONE_NAMES[3]] + secs[ZONE_NAMES[4]]
+    mid = secs[ZONE_NAMES[2]]
+    print(f"\n  easy (Z1-2) {100 * easy / tot:3.0f}%   "
+          f"middle (Z3) {100 * mid / tot:3.0f}%   hard (Z4-5) {100 * hard / tot:3.0f}%")
+    print("  A polarised build is roughly 75-80% easy and 15-20% hard, with very")
+    print("  little in the middle. This is close to the inverse of that.")
 
-    # Real speed work: fast absolute pace, not just elevated HR.
     fast = [r for r in runs if r["_pace"] and r["_pace"] < 5.0]
     fast.sort(key=lambda r: r["_d"])
-    print(f"  runs faster than 5:00/km   {len(fast)} in 12 months")
+    print(f"\n  runs faster than 5:00/km   {len(fast)} in 12 months")
     if fast:
         last = fast[-1]
         gap = (D.today - last["_d"]).days
@@ -442,7 +480,10 @@ def sleep(D):
 
 def adherence(D, wk_n):
     section("PLAN ADHERENCE")
-    keys = sorted(wk_n)[-8:]
+    # The current week is still in progress; counting it drags the average down
+    # and reads as a decline that has not happened yet.
+    cur = week(D.today)
+    keys = [k for k in sorted(wk_n) if k != cur][-8:]
     target = 4  # Phase 2a/2b template running days
     print(f"  plan calls for ~{target} running sessions/week in the current phase")
     print(f"  {'week':9s} {'runs':>5s} {'vs plan':>9s}")
@@ -450,7 +491,9 @@ def adherence(D, wk_n):
         gap = wk_n[k] - target
         print(f"  {wk_label(k):9s} {wk_n[k]:5d} {gap:+9d}  {'#' * wk_n[k]}")
     avg = mean([wk_n[k] for k in keys])
-    print(f"\n  averaging {avg:.1f} of {target} sessions  ({pct(avg, target)}% of planned running days)")
+    print(f"\n  averaging {avg:.1f} of {target} sessions over {len(keys)} complete weeks"
+          f"  ({pct(avg, target)}% of planned running days)")
+    print(f"  the current week ({wk_label(cur)}, {wk_n.get(cur, 0)} run(s) so far) is excluded")
 
 
 def seasonal_load(D):
