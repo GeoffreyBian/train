@@ -1,4 +1,5 @@
 date,activity_id,name,type,distance_km,duration_min,pace_min_km,avg_hr,max_hr,calories,elev_gain_m,avg_cadence,aerobic_te,anaerobic_te,training_load,vo2max
+2026-09-04,24241157383,Richmond Running,running,7.0,41.6,5.94,141.0,154.0,510.0,6.0,151.0,3.1,0.0,76.0,55.0
 2026-09-03,24226898793,Richmond Running,running,8.24,44.8,5.44,155.0,173.0,621.0,7.0,158.0,3.5,0.0,113.0,55.0
 2026-09-01,24200906359,Richmond Running,running,10.59,64.9,6.13,140.0,157.0,766.0,15.0,154.0,3.4,0.0,92.0,55.0
 2026-08-30,24178295698,Douglas County Hiking,hiking,7.19,102.3,14.23,99.0,130.0,500.0,134.0,101.0,1.0,0.0,10.0,

@@ -66,7 +66,14 @@
    }
   }
  ],
- "unclaimed": [],
- "km_done": 18.8,
+ "unclaimed": [
+  {
+   "date": "2026-09-04",
+   "name": "Richmond Running",
+   "type": "running",
+   "km": 7.0
+  }
+ ],
+ "km_done": 25.8,
  "km_floor": 20.0
 }
