@@ -2,7 +2,7 @@
  "week_start": "2026-08-31",
  "week_end": "2026-09-06",
  "week_label": "2026-W36",
- "data_through": "2026-09-04",
+ "data_through": "2026-09-05",
  "sessions": [
   {
    "id": "reps",
@@ -72,6 +72,18 @@
    "name": "Richmond Running",
    "type": "running",
    "km": 7.0
+  },
+  {
+   "date": "2026-09-05",
+   "name": "North Vancouver District Hiking",
+   "type": "hiking",
+   "km": 2.8
+  },
+  {
+   "date": "2026-09-05",
+   "name": "North Vancouver District Hiking",
+   "type": "hiking",
+   "km": 2.2
   }
  ],
  "km_done": 25.8,

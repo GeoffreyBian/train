@@ -1,4 +1,6 @@
 date,activity_id,name,type,distance_km,duration_min,pace_min_km,avg_hr,max_hr,calories,elev_gain_m,avg_cadence,aerobic_te,anaerobic_te,training_load,vo2max
+2026-09-05,24251924235,North Vancouver District Hiking,hiking,2.75,64.3,23.42,108.0,125.0,377.0,2.0,58.0,1.2,0.0,14.0,
+2026-09-05,24251180308,North Vancouver District Hiking,hiking,2.25,59.4,26.38,161.0,180.0,849.0,779.0,56.0,4.3,2.2,208.0,
 2026-09-04,24241157383,Richmond Running,running,7.0,41.6,5.94,141.0,154.0,510.0,6.0,151.0,3.1,0.0,76.0,55.0
 2026-09-03,24226898793,Richmond Running,running,8.24,44.8,5.44,155.0,173.0,621.0,7.0,158.0,3.5,0.0,113.0,55.0
 2026-09-01,24200906359,Richmond Running,running,10.59,64.9,6.13,140.0,157.0,766.0,15.0,154.0,3.4,0.0,92.0,55.0
