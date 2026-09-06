@@ -207,6 +207,42 @@ table.dt tr:last-child td{border-bottom:0}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px}
 @media(max-width:820px){.grid2{grid-template-columns:1fr}}
 .empty{font-family:var(--mono);font-size:12px;color:var(--ink-3);padding:26px 0}
+
+/* ---- health ---- */
+.scale{display:flex;gap:2px;margin:6px 0 10px}
+.scale div{flex:1;min-height:34px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:10px;color:var(--ink-3);background:var(--rule-2);
+  border-radius:2px;text-align:center;line-height:1.15;padding:0 3px}
+.scale div.on{background:var(--warn);color:#fff;font-weight:600}
+.scale div small{display:block;font-size:9px;opacity:.75}
+.split{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;
+  padding:11px 0;border-bottom:1px solid var(--rule-2);font-size:14px}
+.split:last-child{border-bottom:0}
+.split .r{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);
+  font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.split b{font-weight:600}
+.good-note{display:grid;grid-template-columns:3px 1fr;gap:16px;background:var(--good-bg);
+  border:1px solid var(--rule);border-radius:3px;margin-bottom:10px;overflow:hidden}
+.good-note .stripe{background:var(--good)}
+.good-note .fb{padding:14px 18px 14px 0}
+.good-note h3{font-size:14.5px;font-weight:600;font-family:var(--body);margin-bottom:4px}
+.good-note p{margin:0;color:var(--ink-2);font-size:13.5px;max-width:64ch}
+.ladder{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;
+  font-variant-numeric:tabular-nums}
+.ladder th{text-align:right;padding:8px 12px;border-bottom:1px solid var(--rule);
+  font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-3);
+  font-weight:600}
+.ladder th:first-child,.ladder td:first-child{text-align:left}
+.ladder td{text-align:right;padding:10px 12px;border-bottom:1px solid var(--rule-2)}
+.ladder tr:last-child td{border-bottom:0}
+.ladder tr.on td{background:var(--good-bg);color:var(--ink);font-weight:600}
+.ladder tr.off td{color:var(--ink-3)}
+.pill{display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.08em;padding:2px 7px;border-radius:2px;
+  background:var(--rule-2);color:var(--ink-2)}
+.pill.ok{background:var(--good-bg);color:var(--good)}
+.pill.no{background:var(--crit-bg);color:var(--crit)}
 .hidden{display:none!important}
 
 /* ---- tooltip ---- */
@@ -246,6 +282,7 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
   <a href="#/activities" data-r="/activities">Activities</a>
   <a href="#/nights" data-r="/nights">Sleep</a>
   <a href="#/days" data-r="/days">Days</a>
+  <a href="#/health" data-r="/health">Health</a>
 </nav>
 
 <div id="detail" class="hidden"></div>
@@ -942,6 +979,375 @@ function viewDay(date) {
   el2.innerHTML = h;
 }
 
+/* ---- health: the DEXA scan, read against the watch ---- */
+function viewHealth() {
+  const el2 = document.getElementById("detail");
+  const H = D.health;
+  if (!H) {
+    el2.innerHTML = '<div class="dhead"><h1>Health</h1></div>'
+      + '<div class="empty">No DEXA scan on file. Drop one row into '
+      + '<span class="mono">~/dev/health/dexa.csv</span> and rebuild.</div>';
+    return;
+  }
+  const c = H.comp, e = H.energy, v = H.vitals, t = H.target, pl = H.plan;
+  const kg = x => num(x, 1) + " kg";
+  const cal = x => Math.round(x).toLocaleString();
+
+  let h = '<div class="dhead"><h1>Health</h1><div class="meta">DEXA scan <b>'
+    + esc(H.date) + "</b> · " + esc(H.provider)
+    + " · read against <b>" + v.sleep_n + "</b> nights and <b>" + e.act_n
+    + "</b> days of watch data. A scan is one deep snapshot; the watch is "
+    + "shallow and continuous. Neither alone sets a calorie target.</div></div>";
+
+  /* ---------- the tiles ---------- */
+  h += '<div class="tiles">'
+    + tile("Body fat", num(c.fat_pct, 1), "%", H.ace_band + " band")
+    + tile("Fat mass", num(c.fat_kg, 1), " kg", "of " + kg(c.weight))
+    + tile("Lean mass", num(c.lean_kg, 1), " kg", "protect this")
+    + tile("Fat-free mass", num(c.ffm_kg, 1), " kg", "lean + bone")
+    + tile("Visceral fat", num(H.vat.g, 0), " g", H.vat.pc + "th pct · " + H.vat.ageband)
+    + tile("Bone density", "+" + num(H.bone.t, 1), " T", num(H.bone.bmd, 3) + " g/cm²")
+    + tile("Muscle index", num(H.rsmi.v, 2), "", "cutoff " + num(H.rsmi.cut, 2))
+    + tile("Resting metabolism", cal(e.rmr), "", "kcal/day at rest")
+    + "</div>";
+
+  /* ---------- verdict ---------- */
+  h += '<div class="verdict" style="margin:26px 0 8px">'
+    + '<div class="lede">Nothing here is a health problem. One thing here is a '
+    + 'race problem.</div>'
+    + "<p>The clinical half of this scan is close to ideal for a 22-year-old: "
+    + "visceral fat at the <strong>" + H.vat.pc + "th percentile</strong>, bone "
+    + "density <strong>" + num(H.bone.t, 1) + " standard deviations above</strong> "
+    + "the young-adult average, muscle index well clear of any concern, and "
+    + "left-right balance inside " + num(Math.max.apply(null, H.balance.map(b => b.pct)), 1)
+    + "%. There is no metabolic risk to train away.</p>"
+    + "<p>The performance half is the <strong>" + num(c.fat_pct, 1)
+    + "% body fat</strong>, which puts you in the ACE <em>" + H.ace_band
+    + "</em> band — one step below <em>Fitness</em>, two below the 6–13% athletes "
+    + "occupy. Hyrox makes you carry that through eight 1 km runs, 80 m of burpee "
+    + "broad jumps and 100 m of lunges, and then it hands you a "
+    + "<strong>152 kg sled</strong> that does not care what you weigh. So the job "
+    + "is narrow: lose fat, keep every gram of the " + num(c.lean_kg, 1)
+    + " kg of lean mass. The rest of this page is about how little room the "
+    + "energy budget leaves to do that.</p></div>";
+
+  /* ---------- what the numbers say to fix ---------- */
+  if (H.findings.length) {
+    h += '<section><div class="head"><h2>What the scan changes</h2>'
+      + '<span class="note">scan × watch</span></div>'
+      + H.findings.map(f =>
+        '<div class="finding ' + f.sev + '"><div class="stripe"></div><div class="fb">'
+        + '<h3><span class="num">' + f.num + "</span> &nbsp;" + f.title + "</h3>"
+        + "<p>" + f.body + "</p></div></div>").join("") + "</section>";
+  }
+
+  /* ---------- body fat scale ---------- */
+  h += '<section><div class="head"><h2>Where the fat percentage sits</h2>'
+    + '<span class="note">ACE reference, men</span></div>'
+    + '<p class="sub">The scan reports <strong>' + num(c.fat_pct, 1)
+    + '%</strong> tissue fat — fat as a share of fat plus lean. Counting bone as '
+    + "well it is " + num(c.fat_pct_total, 1) + "%. Both are the same body; the "
+    + "first is the number every reference table uses.</p>"
+    + '<div class="chart"><div class="ct">ACE body-fat classification</div>'
+    + '<div class="cs">Your scan lands in the highlighted band.</div>'
+    + '<div class="scale">'
+    + H.ace.map(b => '<div' + (b.on ? ' class="on"' : "") + ">" + b.name
+        + "<small>" + b.lo + "–" + (b.hi > 90 ? "" : b.hi) + "%</small></div>").join("")
+    + "</div></div></section>";
+
+  /* ---------- the ladder ---------- */
+  h += '<section><div class="head"><h2>What is reachable by 20 December</h2>'
+    + '<span class="note">' + pl.cut_weeks + ' weeks before the taper</span></div>'
+    + '<p class="sub">Every row holds fat-free mass constant at <strong>'
+    + num(c.ffm_kg, 1) + ' kg</strong> — a target that loses lean mass is not a '
+    + "target, it is a slower sled. Weeks are computed from your own energy "
+    + "budget below, not from a rule of thumb. The cut has to stop by <strong>"
+    + esc(pl.cut_end) + "</strong>; the last four weeks are taper and carb "
+    + "loading, which do not happen in a deficit.</p>"
+    + '<div class="tbl-wrap"><table class="ladder"><thead><tr>'
+    + "<th>Target</th><th>Fat mass</th><th>To lose</th><th>Body weight</th>"
+    + "<th>Weeks needed</th><th>By race day</th></tr></thead><tbody>"
+    + H.targets.map(x => '<tr class="' + (x.is_target ? "on" : x.reachable ? "" : "off")
+        + '"><td>' + num(x.pct, 0) + "% body fat</td><td>" + kg(x.fat_kg)
+        + "</td><td>−" + num(x.drop_kg, 1) + " kg</td><td>" + kg(x.weight)
+        + "</td><td>" + (x.weeks == null ? "—" : x.weeks) + "</td><td>"
+        + '<span class="pill ' + (x.reachable ? "ok" : "no") + '">'
+        + (x.reachable ? "reachable" : "not by Dec") + "</span></td></tr>").join("")
+    + "</tbody></table></div>"
+    + '<p class="sub" style="margin-top:18px">At the intake below and '
+    + e.plan_sess + " sessions a week you lose about <strong>"
+    + num(e.kg_per_week, 2) + " kg of fat a week</strong>. Over " + pl.cut_weeks
+    + " weeks that is <strong>" + num(e.kg_per_week * pl.cut_weeks, 1)
+    + " kg</strong>, landing you at roughly <strong>" + num(pl.landed_pct, 1)
+    + "% and " + kg(pl.landed_kg) + "</strong> on race day. That is the honest "
+    + "number. Sub-15% is a next-season goal, not a December one — and chasing "
+    + "it in the next eleven weeks would cost you the lean mass the sled runs "
+    + "on.</p></section>";
+
+  /* ---------- energy budget ---------- */
+  h += '<section><div class="head"><h2>The energy budget</h2>'
+    + '<span class="note">scan RMR × ' + e.act_n + ' days of watch data</span></div>'
+    + '<p class="sub">This is the one calculation neither dataset can do alone. '
+    + "The scan measures resting metabolism from your fat-free mass (<strong>"
+    + cal(e.rmr) + " kcal</strong>) and fixes the denominator for energy "
+    + "availability at <strong>" + num(e.ffm, 1) + " kg</strong>. The watch "
+    + "supplies what you actually burn: <strong>" + cal(e.active)
+    + " kcal a day</strong> above rest, of which <strong>" + cal(e.eee_sess)
+    + " kcal</strong> is a typical training session and the rest is walking "
+    + "around. Two other standard formulas put resting metabolism at "
+    + cal(e.rmr_km) + "–" + cal(e.rmr_mifflin) + ", so read maintenance as a "
+    + "band near <strong>" + cal(e.maint) + "–" + cal(e.maint_hi)
+    + "</strong>, not a fact.</p>"
+    + '<div class="two">'
+    + '<div class="chart"><div class="ct">A day, priced</div>'
+    + '<div class="cs">What each kind of day costs, and what to eat on it.</div>'
+    + '<div class="split"><div>Rest day maintenance</div><div class="r">'
+    + cal(e.rest_maint) + " kcal</div></div>"
+    + '<div class="split"><div><b>Eat on a rest day</b></div><div class="r"><b>'
+    + cal(e.eat_rest) + " kcal</b></div></div>"
+    + '<div class="split"><div>Session day maintenance</div><div class="r">'
+    + cal(e.sess_maint) + " kcal</div></div>"
+    + '<div class="split"><div><b>Eat on a session day</b></div><div class="r"><b>'
+    + cal(e.eat_sess) + " kcal</b></div></div>"
+    + '<div class="split"><div>Protein, every day</div><div class="r">'
+    + e.protein_lo + "–" + e.protein_hi + " g</div></div>"
+    + "</div>"
+    + '<div class="chart"><div class="ct">The week that produces</div>'
+    + '<div class="cs">' + (7 - e.plan_sess) + " rest days, " + e.plan_sess
+    + " session days.</div>"
+    + '<div class="split"><div>Weekly maintenance</div><div class="r">'
+    + cal(e.wk_maint) + " kcal</div></div>"
+    + '<div class="split"><div>Weekly intake</div><div class="r">'
+    + cal(e.wk_intake) + " kcal</div></div>"
+    + '<div class="split"><div>Weekly deficit</div><div class="r">−'
+    + cal(e.wk_deficit) + " kcal</div></div>"
+    + '<div class="split"><div><b>Fat loss</b></div><div class="r"><b>'
+    + num(e.kg_per_week, 2) + " kg/week</b></div></div>"
+    + '<div class="split"><div>Energy availability floor</div><div class="r">'
+    + e.ea_floor + " kcal/kg FFM</div></div>"
+    + "</div></div>"
+    + '<p class="sub" style="margin-top:18px">Note what the floors do. At '
+    + num(e.ffm, 1) + " kg of fat-free mass, staying above the energy "
+    + "availability threshold costs <strong>" + cal(e.floor_rest)
+    + " kcal on a rest day</strong> and <strong>" + cal(e.floor_sess)
+    + " on a session day</strong> — and that session-day floor is <em>above</em> "
+    + "your " + cal(e.maint) + " kcal average maintenance. A flat "
+    + "eat-less-every-day deficit is not available to you. That is why the "
+    + "deficit lives on rest days and session days stay fed, and it is why the "
+    + "loss rate is " + num(e.kg_per_week, 2) + " kg a week rather than the half "
+    + "kilo a generic calculator would promise.</p>"
+    + '<p class="sub">Treat all of this as a starting point with a feedback '
+    + "loop, not a prescription. Weigh yourself three mornings a week and track "
+    + "the seven-day average. If it has not moved after a fortnight, take 150 "
+    + "kcal off the rest days — never off the session days.</p></section>";
+
+  /* ---------- visceral fat ---------- */
+  const vc = H.vat.curve;
+  if (vc.length) {
+    const W = 900, HH = 210, L = 56, R = 18, T = 16, B = 34;
+    const iw = W - L - R, ih = HH - T - B;
+    const hi = Math.max.apply(null, vc.map(p => p.g)) * 1.05;
+    const X = pc => L + (pc / 100) * iw;
+    const Y = g => T + ih - (g / hi) * ih;
+    let g = "";
+    for (let k = 0; k <= 3; k++) {
+      const val = hi * k / 3, yy = Y(val);
+      g += '<line x1="' + L + '" x2="' + (L + iw) + '" y1="' + yy.toFixed(1)
+        + '" y2="' + yy.toFixed(1) + '" stroke="var(--grid)" stroke-width="1"/>'
+        + '<text x="' + (L - 9) + '" y="' + (yy + 4).toFixed(1)
+        + '" text-anchor="end" fill="var(--ink-3)" font-family="var(--mono)"'
+        + ' font-size="10.5">' + Math.round(val) + "</text>";
+    }
+    // the low-risk ceiling, which he is nowhere near
+    const yr = Y(H.vat.risk_floor);
+    if (yr > T) {
+      g += '<line x1="' + L + '" x2="' + (L + iw) + '" y1="' + yr.toFixed(1)
+        + '" y2="' + yr.toFixed(1) + '" stroke="var(--warn)" stroke-width="1"'
+        + ' stroke-dasharray="4 4"/>'
+        + '<text x="' + (L + 6) + '" y="' + (yr - 7).toFixed(1)
+        + '" text-anchor="start" fill="var(--warn)" font-family="var(--mono)"'
+        + ' font-size="10.5">' + H.vat.risk_floor + " g · low-risk ceiling</text>";
+    }
+    g += '<polyline points="'
+      + vc.map(p => X(p.pc).toFixed(1) + "," + Y(p.g).toFixed(1)).join(" ")
+      + '" fill="none" stroke="var(--ink-3)" stroke-width="2"/>';
+    g += '<circle cx="' + X(H.vat.pc).toFixed(1) + '" cy="' + Y(H.vat.g).toFixed(1)
+      + '" r="5.5" fill="var(--good)"/>'
+      + '<text x="' + (X(H.vat.pc) + 12).toFixed(1) + '" y="'
+      + (Y(H.vat.g) - 8).toFixed(1) + '" fill="var(--good)"'
+      + ' font-family="var(--mono)" font-size="11" font-weight="600">you · '
+      + H.vat.g + " g</text>";
+    [0, 25, 50, 75, 100].forEach(pc => {
+      g += '<text x="' + X(pc).toFixed(1) + '" y="' + (HH - B + 20)
+        + '" text-anchor="' + (pc === 0 ? "start" : pc === 100 ? "end" : "middle")
+        + '" fill="var(--ink-3)" font-family="var(--mono)" font-size="10.5">'
+        + pc + "</text>";
+    });
+    h += '<section><div class="head"><h2>Visceral fat</h2>'
+      + '<span class="note">men ' + H.vat.ageband + "</span></div>"
+      + '<p class="sub">The fat that sits around the organs rather than under the '
+      + "skin, and the only body-composition number on this scan with a direct "
+      + "clinical meaning. Yours is <strong>" + H.vat.g + " g</strong> against a "
+      + H.vat.risk_floor + " g low-risk ceiling, at the <strong>" + H.vat.pc
+      + "th percentile</strong> for men your age. Subcutaneous fat in the same "
+      + "region is " + cal(H.vat.sat_g) + " g — twenty times as much. "
+      + "<strong>There is nothing to fix here.</strong> Any fat you lose from now "
+      + "on is a performance decision, not a health one.</p>"
+      + '<div class="chart"><div class="ct">Visceral fat mass by percentile</div>'
+      + '<div class="cs">The reference curve for men ' + H.vat.ageband
+      + ", from 450,000 DEXA scans. Horizontal axis is percentile.</div>"
+      + '<svg viewBox="0 0 ' + W + " " + HH + '" role="img" aria-label="Visceral '
+      + "fat reference curve for men, with this athlete marked at the "
+      + H.vat.pc + 'th percentile">' + g + "</svg></div></section>";
+  }
+
+  /* ---------- lean mass distribution ---------- */
+  const segTot = H.segments.reduce((a, x) => a + x.lean, 0);
+  h += '<section><div class="head"><h2>Where the muscle is</h2>'
+    + '<span class="note">lean mass by segment</span></div>'
+    + '<p class="sub">Hyrox is not a running race with obstacles. A ski erg, a '
+    + "1000 m row, a 103 kg sled pull, 200 m of farmers carry and 100 wall balls "
+    + "all run through the upper body and grip. Your arms hold <strong>"
+    + num(H.segments[0].lean / 1000, 1) + " kg</strong> of lean mass against "
+    + num(H.segments[1].lean / 1000, 1) + " kg in the legs — a ratio of "
+    + num(H.rsmi.arms_legs_ratio, 2) + ", which is a runner's build. This is the "
+    + "one place on the whole scan worth <em>adding</em> mass rather than losing "
+    + "it, and the deficit above is deliberately small so that stays possible.</p>"
+    + '<div class="chart"><div class="ct">Lean mass by segment</div>'
+    + '<div class="cs">Share of the ' + num(segTot / 1000, 1)
+    + " kg the scan splits across arms, legs and trunk — the remaining "
+    + num((c.lean_kg * 1000 - segTot) / 1000, 1)
+    + " kg is head and neck. Fat percentage is measured within each region.</div>"
+    + H.segments.map(sg => '<div class="zbar"><span>' + sg.name + "</span>"
+        + '<span class="t"><i style="width:' + sg.lean_share.toFixed(1)
+        + '%;background:var(--petrol)"></i></span><span>'
+        + num(sg.lean / 1000, 1) + " kg  ·  " + num(sg.lean_share, 0)
+        + "%  ·  " + num(sg.fat_pct, 1) + "% fat</span></div>").join("")
+    + "</div>"
+    + '<div class="chart"><div class="ct">Left / right balance</div>'
+    + '<div class="cs">Lean mass, right side against left. Under 10% is normal '
+    + "variation, not an imbalance.</div>"
+    + H.balance.map(b => '<div class="split"><div>' + b.name
+        + "</div><div class=\"r\">" + cal(b.r) + " g R · " + cal(b.l) + " g L · "
+        + (b.d >= 0 ? "+" : "−") + cal(Math.abs(b.d)) + " g · "
+        + num(b.pct, 1) + "%</div></div>").join("")
+    + "</div></section>";
+
+  /* ---------- what is already right ---------- */
+  if (H.good.length) {
+    h += '<section><div class="head"><h2>What is already right</h2>'
+      + '<span class="note">do not train these away</span></div>'
+      + H.good.map(x => '<div class="good-note"><div class="stripe"></div>'
+        + '<div class="fb"><h3>' + x.t + "</h3><p>" + x.b + "</p></div></div>").join("")
+      + "</section>";
+  }
+
+  /* ---------- the watch half ---------- */
+  h += '<section><div class="head"><h2>Health metrics from the watch</h2>'
+    + '<span class="note">what the scan cannot see</span></div>'
+    + '<p class="sub">A DEXA scan is a still photograph. These are the '
+    + "continuous measurements that decide whether the next one is better or "
+    + "worse — and in a deficit, sleep and stress stop being recovery numbers "
+    + "and become body-composition ones.</p>"
+    + '<div class="tiles">'
+    + tile("Resting HR", num(v.rhr, 0), " bpm", "worn nights only")
+    + tile("Sleep", num(v.sleep, 1), " h", "need " + num(v.sleep_need, 1) + " h")
+    + (v.sleep_debt_wk != null
+        ? tile("Weekly sleep debt", "−" + num(v.sleep_debt_wk, 1), " h",
+               v.sleep_n + " nights measured") : "")
+    + tile("Deep sleep", num(v.deep_pct, 0), "%", "of time asleep")
+    + tile("REM", num(v.rem_pct, 0), "%", "20–25% typical")
+    + tile("Respiration", num(v.resp, 1), "", "breaths/min asleep")
+    + tile("Daily stress", num(v.stress, 0), "", "Garmin 0–100")
+    + tile("Body battery", num(v.bb_low, 0) + "→" + num(v.bb_high, 0), "",
+           "daily low to high")
+    + tile("Steps", cal(v.steps), "", "90-day average")
+    + tile("Stairs", num(v.floors, 0), "", "floors a day")
+    + (v.vo2 ? tile("VO₂max", num(v.vo2, 1), "", "Garmin estimate") : "")
+    + (v.endurance ? tile("Endurance score", cal(v.endurance), "",
+        "peak " + cal(v.endurance_peak)) : "")
+    + "</div>"
+    + '<div class="chart" style="margin-top:16px">'
+    + '<div class="ct">Weekly activity against the health guideline</div>'
+    + '<div class="cs">Moderate-equivalent minutes, counting vigorous exercise '
+    + "double. The public-health floor is " + v.int_target
+    + " a week; this is the one health metric where you are not close to the "
+    + "line, you are far past it.</div>"
+    + '<div class="split"><div>Your weekly average</div><div class="r">'
+    + cal(v.int_wk) + " min</div></div>"
+    + '<div class="split"><div>Guideline</div><div class="r">' + v.int_target
+    + " min</div></div>"
+    + '<div class="split"><div>Weeks at or above it</div><div class="r">'
+    + v.int_weeks_ok + " of " + v.int_weeks + "</div></div>"
+    + "</div>";
+
+  if (v.endurance && v.endurance_peak && v.endurance_peak > v.endurance) {
+    h += '<p class="sub" style="margin-top:18px">Endurance score is <strong>'
+      + cal(v.endurance) + "</strong> against a twelve-month peak of "
+      + cal(v.endurance_peak) + " — <strong>"
+      + cal(v.endurance_peak - v.endurance) + " points down</strong>. Unlike "
+      + "VO\u2082max it tracks sustained aerobic volume rather than peak efforts, "
+      + "so it is the watch metric that most directly reflects the running "
+      + "consistency the overview is asking for. It has been falling since "
+      + "July.</p>";
+  }
+
+  if (H.weights.length > 1) {
+    h += lineChart(null, {
+      pts: H.weights.map(w => w.kg),
+      xs: H.weights.map(w => w.d),
+      label: "Body weight", unit: H.weights.length + " measurements",
+      color: "var(--petrol)", fmt: x => num(x, 1),
+      xlabel: "Weigh-ins are sparse — three mornings a week is what makes the "
+        + "next scan interpretable, because weight between scans is the only "
+        + "signal that says whether a change was fat or lean.",
+    });
+  }
+  h += "</section>";
+
+  /* ---------- what to do ---------- */
+  h += '<section><div class="head"><h2>What to change</h2>'
+    + '<span class="note">from this scan, in priority order</span></div>'
+    + '<ol class="act">'
+    + "<li><div><h3>Eat on a schedule tied to training, not to the day of the "
+    + "week</h3><p>" + cal(e.eat_sess) + " kcal on session days, "
+    + cal(e.eat_rest) + " on rest days, " + e.protein_lo + "–" + e.protein_hi
+    + " g of protein every day regardless. The protein is the part that decides "
+    + "whether the " + num(t.drop_kg, 1) + " kg comes off as fat or takes lean "
+    + "mass with it.</p></div></li>"
+    + "<li><div><h3>Start lifting and log it</h3><p>In a deficit, resistance "
+    + "training is the entire difference between losing fat and losing the "
+    + num(c.lean_kg, 1) + " kg of lean mass the sled push runs on. Two sessions "
+    + "a week, upper-body biased — that is where the scan says you are thinnest "
+    + "and where the race is heaviest.</p></div></li>"
+    + "<li><div><h3>Weigh in three mornings a week</h3><p>The energy budget above "
+    + "is built from a formula and a watch estimate, and both have real error "
+    + "bars. A seven-day weight average is the only thing that tells you which "
+    + "way to correct. Garmin has <strong>" + H.weights.length
+    + "</strong> weigh-ins on file for the last year.</p></div></li>"
+    + "<li><div><h3>Close the sleep gap before the load goes up</h3><p>"
+    + num(v.sleep, 1) + " h against a " + num(v.sleep_need, 1) + " h need is "
+    + num(v.sleep_debt_wk, 1) + " h a week. Short sleep shifts weight loss away "
+    + "from fat and toward lean tissue, which is precisely the trade this whole "
+    + "page is trying to avoid.</p></div></li>"
+    + "<li><div><h3>Re-scan in eight to ten weeks</h3><p>Late November, before "
+    + "the taper. One scan is a number; two are a direction, and the only "
+    + "question that matters — did the weight that came off come off as fat — "
+    + "cannot be answered by a bathroom scale.</p></div></li>"
+    + "</ol></section>";
+
+  h += '<p class="sub" style="color:var(--ink-3);font-size:13px;margin-top:26px">'
+    + "Reference values are from the scan report itself (ACE 2003 body-fat bands, "
+    + "Baumgartner muscle index, BodySpec visceral fat table) and from standard "
+    + "sports-nutrition guidance. The calorie and energy-availability figures are "
+    + "estimates built on a predicted resting metabolism, not measurements. None "
+    + "of this is medical advice — take anything clinical to a physician or a "
+    + "sports dietitian.</p>";
+
+  el2.innerHTML = h;
+}
+
+
 /* ---- router ---- */
 function route() {
   const hash = (location.hash || "#/").replace(/^#/, "");
@@ -959,6 +1365,7 @@ function route() {
     else if (top === "nights") viewNights();
     else if (top === "night") viewNight(parts[1]);
     else if (top === "days") viewDays();
+    else if (top === "health") viewHealth();
     else if (top === "day") viewDay(parts[1]);
     else { ov.classList.remove("hidden"); dt.classList.add("hidden"); }
   } catch (e) {
@@ -966,6 +1373,10 @@ function route() {
       + '<div class="empty">Could not render that view.</div>';
   }
   window.scrollTo(0, 0);
+}
+if (!D.health) {
+  const a = document.querySelector('#nav a[data-r="/health"]');
+  if (a) a.remove();
 }
 window.addEventListener("hashchange", route);
 route();

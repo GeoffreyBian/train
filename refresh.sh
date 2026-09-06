@@ -45,6 +45,19 @@ $PY build_dashboard.py || exit 1
 # docs/index.html is what GitHub Pages serves; keep it in step with the build.
 cp dashboard.html docs/index.html 2>/dev/null && echo "   docs/index.html updated"
 
+# Publishing is part of the refresh, not a separate step: fresh data that never
+# reaches geoffreybian.github.io/train is the same as no refresh at all.
+# Pass --no-web to stop before this.
+if [ "${1:-}" = "--no-web" ] || [ "${2:-}" = "--no-web" ]; then
+  echo "   --no-web: not pushing to GitHub"
+elif [ -n "$(git status --porcelain -- docs/index.html data insights)" ]; then
+  git add -A docs/index.html data insights
+  git commit -q -m "Refresh $(date +%Y-%m-%d)" && \
+    git push -q && echo "   pushed — live at https://geoffreybian.github.io/train/"
+else
+  echo "   nothing changed — no push"
+fi
+
 echo
 echo "==> Checks"
 $PY -m pytest test_analyze.py -q 2>&1 | tail -3

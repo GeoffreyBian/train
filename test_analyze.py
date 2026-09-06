@@ -164,3 +164,35 @@ def D_stub(acts):
     D.acts = acts
     D.today = date(2026, 9, 6)
     return D
+
+
+def test_merge_csv_does_not_blank_columns(tmp_path):
+    """A partial pull must not wipe a column another source filled.
+
+    Syncing a wide date range once returned no HRV at all, and the whole-row
+    upsert quietly blanked twelve months of it. Sources here are sparse and
+    independent, so the merge has to be per field.
+    """
+    import garmin_sync as G
+    cols = ["date", "hrv_last_night", "endurance_score"]
+    p = tmp_path / "daily.csv"
+    G.merge_csv(p, [{"date": "2026-09-01", "hrv_last_night": 90}], "date", cols)
+    # a later pull that carries only the endurance score
+    G.merge_csv(p, [{"date": "2026-09-01", "endurance_score": 6475}], "date", cols)
+    row = list(csv.DictReader(open(p)))[0]
+    assert row["hrv_last_night"] == "90", row
+    assert row["endurance_score"] == "6475", row
+
+
+def test_dexa_scan_loads_and_places_visceral_fat():
+    """The Health tab is built off these two; both degrade to empty, not crash."""
+    scans = A.load_dexa()
+    if not scans:
+        return                      # no scan on file is a valid state
+    s = scans[-1]
+    assert s["lean_g"] > 0 and s["fat_g"] > 0
+    # tissue %fat is fat / (fat + lean) -- the number reference tables use
+    calc = 100 * s["fat_g"] / (s["fat_g"] + s["lean_g"])
+    assert abs(calc - s["fat_pct_tissue"]) < 0.15, (calc, s["fat_pct_tissue"])
+    pc, band = A.vat_percentile(s["vat_g"], s["age_years"])
+    assert pc is None or 1 <= pc <= 100

@@ -22,6 +22,345 @@ import analyze as A
 import week_plan as WP
 
 
+def build_health(D, out):
+    """Body composition from the DEXA scan, read against the watch data.
+
+    The scan is a single deep snapshot; Garmin is shallow but continuous. The
+    value is in the join: the scan supplies a measured RMR and fat-free mass,
+    Garmin supplies what is actually burned and slept each day, and only
+    together do they produce a calorie target or an energy-availability floor
+    that means anything for this athlete.
+    """
+    if not D.dexa:
+        return None
+    s = D.dexa[-1]
+    prev = D.dexa[-2] if len(D.dexa) > 1 else None
+    h = {"date": s["date"], "provider": s.get("provider") or "",
+         "n_scans": len(D.dexa)}
+    lean, fat, bmc = s["lean_g"], s["fat_g"], s["bmc_g"]
+    ffm = lean + bmc
+    h["comp"] = {
+        "weight": s["weight_kg"], "fat_kg": round(fat / 1000, 2),
+        "lean_kg": round(lean / 1000, 2), "bmc_kg": round(bmc / 1000, 2),
+        "ffm_kg": round(ffm / 1000, 2),
+        "fat_pct": s["fat_pct_tissue"], "fat_pct_total": s["fat_pct_total"],
+        "percentile": s.get("fat_percentile"),
+    }
+
+    # --- where the fat percentage sits on the ACE scale the report prints
+    fp = s["fat_pct_tissue"]
+    band = next((b[0] for b in A.ACE_BANDS_M if b[1] <= fp <= b[2]), "—")
+    h["ace"] = [{"name": b[0], "lo": b[1], "hi": b[2], "on": b[0] == band}
+                for b in A.ACE_BANDS_M]
+    h["ace_band"] = band
+
+    # --- visceral fat against the male reference table
+    pc, ageband = A.vat_percentile(s["vat_g"], s["age_years"])
+    vband = next((b[0] for b in A.VAT_BANDS
+                  if b[1] <= s["vat_g"] < b[2]), A.VAT_BANDS[-1][0])
+    ref = A.load_vat_reference().get(ageband, {})
+    h["vat"] = {"g": s["vat_g"], "cm3": s.get("vat_cm3"),
+                "sat_g": s.get("sat_g"), "pc": pc, "ageband": ageband,
+                "band": vband,
+                "risk_floor": A.VAT_BANDS[0][2],
+                "curve": [{"pc": k, "g": ref[k]} for k in sorted(ref)],
+                "ag": s.get("ag_ratio")}
+
+    # --- bone. A runner adding a marathon block cares about exactly one number.
+    h["bone"] = {"bmd": s.get("bmd_total"), "t": s.get("bmd_tscore"),
+                 "z": s.get("bmd_zscore"), "spine": s.get("bmd_spine"),
+                 "pelvis": s.get("bmd_pelvis"), "ribs": s.get("bmd_ribs"),
+                 "bmc_kg": round(bmc / 1000, 2)}
+
+    # --- lean mass by segment. Hyrox loads the upper body far harder than a
+    # running-only program ever does, so the arms:legs split is a real read.
+    seg = [("Arms", s["arms_lean_g"], s["arms_fat_g"]),
+           ("Legs", s["legs_lean_g"], s["legs_fat_g"]),
+           ("Trunk", s["trunk_lean_g"], s["trunk_fat_g"])]
+    h["segments"] = [{"name": n, "lean": l, "fat": ft,
+                      "lean_share": round(100 * l / lean, 1),
+                      "fat_pct": round(100 * ft / (l + ft), 1)} for n, l, ft in seg]
+    h["rsmi"] = {"v": s["rsmi"], "cut": A.SARCOPENIA_RSMI_M,
+                 "arms_legs_ratio": round(s["arms_lean_g"] / s["legs_lean_g"], 3)}
+
+    # --- left/right balance. Under about 10% is noise, not an imbalance.
+    def bal(name, r, l):
+        d_ = r - l
+        return {"name": name, "r": r, "l": l, "d": d_,
+                "pct": round(100 * abs(d_) / max(r, l), 1)}
+    h["balance"] = [bal("Arms", s["arm_lean_r_g"], s["arm_lean_l_g"]),
+                    bal("Legs", s["leg_lean_r_g"], s["leg_lean_l_g"]),
+                    bal("Trunk", s["trunk_lean_r_g"], s["trunk_lean_l_g"])]
+
+    # --- the join: a measured RMR and a measured fat-free mass on one side,
+    # what the watch says is actually burned on the other. Neither number alone
+    # produces a calorie target; together they produce a starting point and,
+    # more usefully, a floor.
+    rmr = s["rmr_cal"]
+    recent = [r for r in D.daily
+              if A.d(r["date"]) > D.today - timedelta(days=90)]
+    act = A.mean([A.f(r.get("active_calories")) for r in recent]) or 0
+    # Energy availability is defined against EXERCISE energy expenditure, not
+    # against everything Garmin counts as active. Splitting the two matters:
+    # using the whole active figure understates availability badly.
+    span = 90
+    cutd = D.today - timedelta(days=span)
+    tcal = defaultdict(float)
+    for r in D.acts:
+        if r["_d"] > cutd and A.f(r["calories"]):
+            tcal[r["_d"]] += A.f(r["calories"])
+    per_day = [tcal.get(cutd + timedelta(days=i + 1), 0.0) for i in range(span)]
+    sess = [v for v in per_day if v > 0]
+    eee_all = A.mean(per_day) or 0
+    eee_sess = A.mean(sess) or 0
+    neat = max(0.0, act - eee_all)          # steps, stairs, everything untracked
+
+    ffm_kg = ffm / 1000
+    maint = round((rmr + act) / (1 - A.TEF))
+    # Two other standard estimates, to show the spread rather than assert one
+    # number as fact. Katch-McArdle is FFM-based like the scan's; Mifflin uses
+    # body weight and runs higher on a lean athlete.
+    km = 370 + 21.6 * ffm_kg
+    mifflin = (10 * s["weight_kg"] + 6.25 * s["height_cm"]
+               - 5 * s["age_years"] + 5)
+    maint_hi = round((max(km, mifflin) + act) / (1 - A.TEF))
+    rest_maint = round((rmr + neat) / (1 - A.TEF))
+    sess_maint = round((rmr + neat + eee_sess) / (1 - A.TEF))
+
+    h["energy"] = {
+        "rmr": rmr, "rmr_km": round(km), "rmr_mifflin": round(mifflin),
+        "active": round(act), "neat": round(neat),
+        "eee_sess": round(eee_sess), "sess_days": len(sess), "span": span,
+        "maint": maint, "maint_hi": maint_hi,
+        "rest_maint": rest_maint, "sess_maint": sess_maint,
+        "ffm": round(ffm_kg, 1),
+        # Floors, not targets: the intake below which a day stops being a
+        # deficit and starts being a problem.
+        "floor_rest": round(A.EA_FLOOR * ffm_kg),
+        "floor_sess": round(A.EA_FLOOR * ffm_kg + eee_sess),
+        "ea_floor": A.EA_FLOOR,
+        # Cycled: the deficit sits on rest days, session days stay fed.
+        "eat_rest": round((A.EA_FLOOR * ffm_kg) / 25) * 25,
+        "eat_sess": round((A.EA_FLOOR * ffm_kg + eee_sess) / 25) * 25,
+        "protein_lo": round(1.8 * s["weight_kg"]),
+        "protein_hi": round(2.2 * s["weight_kg"]),
+        "act_n": len(recent),
+    }
+    # A week, priced. Session days are fed to the availability floor and rest
+    # days carry the deficit -- so the weekly deficit is set by the floors, not
+    # by willpower, and it is much smaller than a generic "500 a day" would be.
+    def week_at(n_sess):
+        n_rest = 7 - n_sess
+        intake = n_rest * h["energy"]["eat_rest"] + n_sess * h["energy"]["eat_sess"]
+        burn = n_rest * rest_maint + n_sess * sess_maint
+        return {"n": n_sess, "intake": intake, "maint": burn,
+                "deficit": burn - intake,
+                "kg_wk": round((burn - intake) / 7700, 3)}
+
+    cur_sess = round(len(sess) / (span / 7), 1)
+    plan_sess = 5      # what Phase 2b actually asks for
+    now = week_at(plan_sess)
+    h["energy"]["sess_per_week"] = cur_sess
+    h["energy"]["plan_sess"] = plan_sess
+    h["energy"]["wk_intake"] = now["intake"]
+    h["energy"]["wk_maint"] = now["maint"]
+    h["energy"]["wk_deficit"] = now["deficit"]
+    h["energy"]["kg_per_week"] = now["kg_wk"]
+
+    # --- fat-loss targets, all computed at constant fat-free mass. Losing lean
+    # mass would cost sled push and pull time directly, so it is never a target.
+    def at(pct):
+        f_ = pct / 100 * lean / (1 - pct / 100)      # tissue %fat definition
+        return {"pct": pct, "fat_kg": round(f_ / 1000, 1),
+                "drop_kg": round((fat - f_) / 1000, 1),
+                "weight": round((f_ + ffm) / 1000, 1)}
+
+    h["targets"] = [at(p) for p in (17, 16, 15, 14, 13)]
+
+    left = (A.HYROX - D.today).days
+    # The cut has to finish before the race, not on it -- the last four weeks
+    # are taper and carb loading, which do not happen in a deficit.
+    cut_weeks = max(1, (left - 28) // 7)
+    # Mark each target with the weeks it needs at the EA-safe rate, and pick
+    # the leanest one that actually fits before the taper. Asserting 13% as a
+    # goal when the energy budget cannot deliver it would be a wish, not a plan.
+    rate_wk = h["energy"]["kg_per_week"]
+    for t in h["targets"]:
+        t["weeks"] = round(t["drop_kg"] / rate_wk) if rate_wk > 0 else None
+        t["reachable"] = t["weeks"] is not None and t["weeks"] <= cut_weeks
+    h["target"] = next((t for t in reversed(h["targets"]) if t["reachable"]),
+                       h["targets"][0])
+    h["target"]["is_target"] = True
+    rate = round(h["target"]["drop_kg"] / cut_weeks, 2)
+    # Where the EA-safe rate actually gets you by race day.
+    landed_fat = fat - h["energy"]["kg_per_week"] * cut_weeks * 1000
+    h["plan"] = {
+        "days_left": left, "cut_weeks": cut_weeks, "rate": rate,
+        "cut_end": (A.HYROX - timedelta(days=28)).isoformat(),
+        "achievable": h["energy"]["kg_per_week"] * cut_weeks >= h["target"]["drop_kg"],
+        "weeks_needed": (round(h["target"]["drop_kg"] / h["energy"]["kg_per_week"])
+                         if h["energy"]["kg_per_week"] > 0 else None),
+        "landed_pct": round(100 * landed_fat / (landed_fat + lean), 1),
+        "landed_kg": round((landed_fat + ffm) / 1000, 1),
+    }
+
+    # --- weight history, with the scan marked
+    h["weights"] = [{"d": r["date"], "kg": A.f(r["weight_kg"]),
+                     "src": r.get("source") or ""}
+                    for r in D.weight if A.f(r.get("weight_kg"))]
+
+    # --- the Garmin metrics that speak to health rather than to performance
+    def series(rows, col, days):
+        cut = D.today - timedelta(days=days)
+        return [(r["date"], A.f(r[col])) for r in rows
+                if A.d(r["date"]) > cut and A.f(r.get(col)) is not None]
+
+    def avg(rows, col, days):
+        v = [x[1] for x in series(rows, col, days)]
+        return round(A.mean(v), 1) if v else None
+
+    wk_int = defaultdict(float)
+    for r in D.daily:
+        wk_int[A.week(A.d(r["date"]))] += ((A.f(r.get("intensity_min_moderate")) or 0)
+                                           + 2 * (A.f(r.get("intensity_min_vigorous")) or 0))
+    ik = sorted(wk_int)[-13:-1]
+    tot_sleep = [A.f(r["total_h"]) for r in D.sleep if A.f(r["total_h"])]
+    need = [A.f(r["sleep_need_h"]) for r in D.sleep if A.f(r.get("sleep_need_h"))]
+    deep = [A.f(r["deep_h"]) for r in D.sleep if A.f(r.get("deep_h"))]
+    rem = [A.f(r["rem_h"]) for r in D.sleep if A.f(r.get("rem_h"))]
+    resp = [A.f(r["avg_respiration"]) for r in D.sleep if A.f(r.get("avg_respiration"))]
+    # daily.csv is written newest-first, so sort before taking "latest".
+    endur = sorted(((r["date"], A.f(r["endurance_score"])) for r in D.daily
+                    if A.f(r.get("endurance_score"))), key=lambda x: x[0])
+    # Resting HR is only real on nights the watch was worn; the rest is derived
+    # from daytime readings and runs high. Same correction the overview uses.
+    rhr = [A.f(r["resting_hr"]) for r in D.sleep
+           if A.f(r.get("resting_hr")) and A.d(r["date"]) > D.today - timedelta(days=180)]
+
+    sleep_mean = A.mean(tot_sleep)
+    h["vitals"] = {
+        "rhr": round(A.mean(rhr), 1) if rhr else None,
+        "resp": round(A.mean(resp), 1) if resp else None,
+        "stress": avg(D.daily, "stress_avg", 90),
+        "bb_high": avg(D.daily, "body_battery_high", 90),
+        "bb_low": avg(D.daily, "body_battery_low", 90),
+        "steps": round(avg(D.daily, "steps", 90) or 0),
+        "floors": avg(D.daily, "floors_climbed", 90),
+        "sleep": round(sleep_mean, 2) if sleep_mean else None,
+        "sleep_need": round(A.mean(need), 2) if need else None,
+        "sleep_debt_wk": (round((A.mean(need) - sleep_mean) * 7, 1)
+                          if need and sleep_mean else None),
+        "deep_pct": round(100 * A.mean(deep) / sleep_mean) if deep and sleep_mean else None,
+        "rem_pct": round(100 * A.mean(rem) / sleep_mean) if rem and sleep_mean else None,
+        "sleep_n": len(D.sleep),
+        "int_wk": round(A.mean([wk_int[k] for k in ik])) if ik else None,
+        "int_target": A.WHO_INTENSITY_MIN,
+        "int_weeks_ok": sum(1 for k in ik if wk_int[k] >= A.WHO_INTENSITY_MIN),
+        "int_weeks": len(ik),
+        "endurance": round(endur[-1][1]) if endur else None,
+        "endurance_peak": round(max(x[1] for x in endur)) if endur else None,
+        # The latest value, not the twelve-month peak -- the peak is a
+        # different claim and the overview already makes it.
+        "vo2": next((A.f(r["vo2max"]) for r in sorted(
+            D.daily, key=lambda x: x["date"], reverse=True)
+            if A.f(r.get("vo2max"))), None),
+    }
+    h["trends"] = {
+        "stress": series(D.daily, "stress_avg", 180),
+        "bb_low": series(D.daily, "body_battery_low", 180),
+        "sleep": [(r["date"], A.f(r["total_h"])) for r in D.sleep if A.f(r["total_h"])],
+        "endurance": endur[-180:],
+    }
+
+    # --- findings, conditional on the numbers rather than written in
+    fnd = []
+    tgt = h["target"]
+    fnd.append({
+        "sev": "warn", "num": f"{tgt['drop_kg']:.1f}",
+        "title": "kg of fat between you and race weight",
+        "body": f"At {fp}% tissue fat you are in the ACE “{band}” band, one "
+                f"step below “Fitness” and two below the 6–13% athlete range. "
+                f"Dropping to {tgt['pct']}% at unchanged lean mass means "
+                f"{tgt['weight']} kg on race day. Every one of those kilos is "
+                "carried through eight 1 km runs, 80 m of burpee broad jumps and "
+                "100 m of lunges."})
+    if h["vitals"]["sleep_debt_wk"] and h["vitals"]["sleep_debt_wk"] > 3:
+        fnd.append({
+            "sev": "warn", "num": f"{h['vitals']['sleep_debt_wk']:.1f}",
+            "title": "hours short of your sleep need, every week",
+            "body": f"{h['vitals']['sleep']} h a night against a "
+                    f"{h['vitals']['sleep_need']} h need. In a deficit that gap "
+                    "stops being a recovery problem and becomes a body "
+                    "composition one — short sleep shifts weight loss away "
+                    "from fat and toward lean mass."})
+    e = h["energy"]
+    if e["floor_sess"] >= e["maint"]:
+        fnd.append({
+            "sev": "crit", "num": f"{e['floor_sess']:,}",
+            "title": "kcal you must eat on a session day, above maintenance",
+            "body": f"Your measured fat-free mass is {e['ffm']} kg and a typical "
+                    f"session burns {e['eee_sess']:,} kcal, so staying above the "
+                    f"{A.EA_FLOOR} kcal/kg energy-availability floor on a training "
+                    f"day costs more than your {e['maint']:,} kcal maintenance. "
+                    "A flat daily deficit is therefore not available to you. The "
+                    "deficit has to live on rest days; session days get fed."})
+    if h["rsmi"]["arms_legs_ratio"] < 0.42:
+        fnd.append({
+            "sev": "warn", "num": f"{s['arms_lean_g'] / 1000:.1f}",
+            "title": "kg of arm lean mass against 20.3 in the legs",
+            "body": "A runner's distribution. Hyrox is not a running race: ski "
+                    "erg, row, sled pull, 200 m of farmers carry and 100 wall "
+                    "balls all run through the upper body and grip. This is the "
+                    "one place worth adding mass rather than losing it."})
+    if not any(r["_type"] in A.STRENGTH_TYPES for r in D.acts):
+        fnd.append({
+            "sev": "crit", "num": "0",
+            "title": "logged strength sessions to protect that lean mass",
+            "body": "In a deficit, resistance training is what decides whether "
+                    "the weight comes off as fat or as the 59.1 kg of lean mass "
+                    "the sled push runs on. Without it roughly a quarter of any "
+                    "loss is lean tissue."})
+    h["findings"] = fnd
+
+    # --- the good news, stated as plainly as the problems
+    good = []
+    if pc is not None and pc <= 20:
+        good.append({
+            "t": f"Visceral fat at the {pc}th percentile",
+            "b": f"{s['vat_g']} g against a {h['vat']['risk_floor']} g low-risk "
+                 f"ceiling and a {ref.get(50, 0):.0f} g median for men "
+                 f"{ageband}. There is no metabolic risk here to train away, and "
+                 "no reason to chase abdominal fat for health rather than "
+                 "for performance."})
+    if s.get("bmd_tscore") and s["bmd_tscore"] >= 1:
+        good.append({
+            "t": f"Bone density T-score +{s['bmd_tscore']}",
+            "b": f"{s['bmd_total']} g/cm², {s['bmd_tscore']} standard deviations "
+                 "above the young-adult average. Practically: stress-fracture "
+                 "risk is low, so the long run can be rebuilt at the top of the "
+                 "usual 10%-a-week guidance rather than the bottom."})
+    if s["rsmi"] >= A.SARCOPENIA_RSMI_M * 1.15:
+        good.append({
+            "t": f"Skeletal muscle index {s['rsmi']}",
+            "b": f"Against a {A.SARCOPENIA_RSMI_M} sarcopenia cutoff. The muscle "
+                 "to race on is already there — the job is keeping it while "
+                 "the fat comes off, not building it from nothing."})
+    bal_max = max(h["balance"], key=lambda b: b["pct"])
+    if bal_max["pct"] < 10:
+        good.append({
+            "t": f"Left-right balance within {bal_max['pct']}%",
+            "b": "Nothing asymmetric enough to matter, which is worth knowing "
+                 "before 100 m of single-leg sandbag lunges. Re-scan after the "
+                 "build to check it held."})
+    h["good"] = good
+
+    if prev:
+        h["delta"] = {k: round(s[k] - prev[k], 2) for k in
+                      ("weight_kg", "fat_pct_tissue", "fat_g", "lean_g", "vat_g")
+                      if s.get(k) is not None and prev.get(k) is not None}
+    return h
+
+
 def build_data():
     D = A.Data()
     runs = D.runs()
@@ -351,14 +690,19 @@ def build_data():
                        for r in D.ready}
 
     out["week"] = WP.build(D)
+    out["health"] = build_health(D, out)
     return out, D
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=None, help="output path (default dashboard.html)")
+    ap.add_argument("--no-health", action="store_true",
+                    help="omit the DEXA/health tab (for a published copy)")
     args = ap.parse_args()
     data, D = build_data()
+    if args.no_health:
+        data["health"] = None
     tpl = (ROOT / "dashboard.template.html").read_text(encoding="utf-8")
     if "__DATA__" not in tpl:
         raise SystemExit("template is missing the __DATA__ placeholder")

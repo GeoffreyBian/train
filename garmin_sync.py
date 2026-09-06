@@ -67,7 +67,18 @@ def merge_csv(path, rows, key, columns):
                 existing[r[key]] = r
     added = sum(1 for r in rows if str(r[key]) not in existing)
     for r in rows:
-        existing[str(r[key])] = {c: ("" if r.get(c) is None else r.get(c)) for c in columns}
+        k = str(r[key])
+        # Merge field by field rather than replacing the row. Sources here are
+        # sparse and independent -- a daily pull carries no endurance score, a
+        # wide HRV range can come back empty -- and a whole-row replace lets one
+        # partial pull silently blank a column that another source had filled.
+        prev = existing.get(k, {})
+        merged = {}
+        for c in columns:
+            v = r.get(c)
+            v = "" if v is None else str(v)
+            merged[c] = v if v != "" else prev.get(c, "")
+        existing[k] = merged
     with open(path, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=columns)
         w.writeheader()
@@ -240,7 +251,7 @@ DAILY_COLS = [
     "stress_avg", "body_battery_high", "body_battery_low",
     "intensity_min_moderate", "intensity_min_vigorous",
     "active_calories", "floors_climbed", "training_status", "vo2max",
-    "fitness_age", "heat_acclimation_pct",
+    "fitness_age", "heat_acclimation_pct", "endurance_score",
 ]
 
 
@@ -325,6 +336,62 @@ def pull_vo2max_range(api, start, end):
     return out
 
 
+WEIGHT_COLS = ["date", "weight_kg", "source"]
+
+
+def pull_weight_range(api, start, end):
+    """Body weight history.
+
+    The DEXA scan is one point in time; weight between scans is the only signal
+    that says whether a change was fat or lean, so it is worth carrying.
+    Garmin stores several rows per day when a device and the app both report,
+    and a USER_SETTING row is a profile default rather than a measurement --
+    keep one row per day and prefer a real measurement.
+    """
+    rows = {}
+    try:
+        raw = api.get_weigh_ins(start.isoformat(), end.isoformat()) or {}
+    except Exception:
+        return []
+    days = raw.get("dailyWeightSummaries") or raw.get("dateWeightList") or []
+    for day in days:
+        for w in (day.get("allWeightMetrics") or [day]):
+            grams, ds = w.get("weight"), w.get("calendarDate")
+            if not grams or not ds:
+                continue
+            src = w.get("sourceType") or ""
+            prev = rows.get(ds)
+            # A real measurement always beats the profile default for that day.
+            if prev and (prev["source"] != "USER_SETTING" or src == "USER_SETTING"):
+                continue
+            rows[ds] = {"date": ds, "weight_kg": rnd(grams / 1000.0, 2), "source": src}
+    return list(rows.values())
+
+
+def pull_endurance_range(api, start, end):
+    """Endurance score, keyed by date.
+
+    Garmin's single number for sustained aerobic capacity. Unlike VO2max it
+    moves with training volume rather than with peak efforts, so it tracks the
+    thing the Hyrox build is actually trying to raise.
+    """
+    out = {}
+    try:
+        raw = api.get_endurance_score(start.isoformat(), end.isoformat()) or {}
+    except Exception:
+        return out
+    # Garmin reports this weekly, not daily: groupMap is keyed by week-start.
+    # The column is therefore sparse by design -- one value per Monday.
+    for ds, grp in (raw.get("groupMap") or {}).items():
+        sc = grp.get("groupMax") or grp.get("groupAverage")
+        if sc:
+            out[ds] = round(sc)
+    cur = raw.get("enduranceScoreDTO") or {}
+    if cur.get("calendarDate") and cur.get("overallScore"):
+        out[cur["calendarDate"]] = round(cur["overallScore"])
+    return out
+
+
 def pull_hrv_range(api, start, end):
     """Bulk HRV, keyed by date. One request instead of one per day."""
     out = {}
@@ -385,6 +452,7 @@ def main():
     print("Daily...", end=" ", flush=True)
     hrv = pull_hrv_range(api, start, today)
     vo2 = pull_vo2max_range(api, start, today)
+    endur = pull_endurance_range(api, start, today)
     rows, errs = [], 0
     # training_status has no bulk endpoint and is slow; it only matters recently.
     status_cutoff = today - timedelta(days=30)
@@ -398,6 +466,8 @@ def main():
                     r["hrv_last_night"], r["hrv_status"], _ = hrv[ds_]
                 if ds_ in vo2:
                     r["vo2max"], r["fitness_age"], r["heat_acclimation_pct"] = vo2[ds_]
+                if ds_ in endur:
+                    r["endurance_score"] = endur[ds_]
                 rows.append(r)
         except Exception:
             errs += 1
@@ -418,6 +488,11 @@ def main():
         time.sleep(0.2)
     n = merge_csv(DATA / "readiness.csv", rows, "date", READINESS_COLS)
     print(f"{len(rows)} days, {n} new" + (f", {errs} errors" if errs else ""))
+
+    print("Weight...", end=" ", flush=True)
+    wrows = pull_weight_range(api, start - timedelta(days=365), today)
+    n = merge_csv(DATA / "weight.csv", wrows, "date", WEIGHT_COLS)
+    print(f"{len(wrows)} weigh-ins, {n} new")
 
     print(f"\nDone. Data in {DATA}")
     with open(DATA / ".last_sync", "w") as f:

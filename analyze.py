@@ -19,6 +19,11 @@ ROOT = Path(__file__).resolve().parent
 # GARMIN_DATA_DIR lets the demo build render synthetic data without touching
 # (or ever reading) the real CSVs.
 DATA = Path(os.environ.get("GARMIN_DATA_DIR") or ROOT / "data")
+# DEXA scans and their reference tables live outside this repo: they are
+# clinical documents, not watch exports, and they arrive a few times a year
+# rather than nightly. Missing is a normal state -- everything downstream
+# degrades to "no scan yet" rather than failing.
+HEALTH = Path(os.environ.get("HEALTH_DIR") or ROOT.parent / "health")
 
 # --- athlete constants -------------------------------------------------
 def _zones():
@@ -45,6 +50,23 @@ FLAT_M_PER_KM = 10    # runs above this are hilly; pace isn't comparable
 MIN_KM = 2.0          # ignore warmups/strides
 MAX_PACE = 12.0       # ignore walks and GPS artifacts
 
+# --- health reference values ------------------------------------------
+# ACE (2003) body-fat bands for men. The DEXA report prints these; keeping them
+# here means the dashboard can place a scan on the scale without the PDF.
+ACE_BANDS_M = [("Essential", 2, 5), ("Athlete", 6, 13), ("Fitness", 14, 17),
+               ("Average", 18, 24), ("Higher risk", 25, 100)]
+# BodySpec VAT risk bands, grams (from the reference sheet filed with the scan).
+VAT_BANDS = [("Low to moderate", 0, 500), ("Moderate", 500, 1000),
+             ("Increased risk", 1000, 1500), ("High risk", 1500, 10000)]
+SARCOPENIA_RSMI_M = 7.26        # Baumgartner cutoff, males
+WHO_INTENSITY_MIN = 150         # moderate-equivalent minutes per week
+# Low energy availability threshold (RED-S). Below 30 kcal per kg of fat-free
+# mass per day, a deficit starts costing hormones and bone rather than fat.
+EA_FLOOR = 30
+# Thermic effect of food, as a share of intake. Needed to turn a measured RMR
+# plus Garmin's active calories into a maintenance figure.
+TEF = 0.10
+
 RUN_TYPES = ("running", "treadmill_running", "trail_running")
 STRENGTH_TYPES = ("strength", "fitness_equipment", "hiit", "functional")
 # Logged as generic cardio; counts as gym time but is not station/strength work.
@@ -60,12 +82,50 @@ def f(v):
         return None
 
 
-def load(name):
-    p = DATA / f"{name}.csv"
+def load(name, root=None):
+    p = (root or DATA) / f"{name}.csv"
     if not p.exists():
         return []
     with open(p, newline="") as fh:
         return [r for r in csv.DictReader(fh) if r.get("date")]
+
+
+def load_dexa():
+    """Every DEXA scan, oldest first, numeric fields coerced."""
+    rows = sorted(load("dexa", HEALTH), key=lambda r: r["date"])
+    for r in rows:
+        for k, v in list(r.items()):
+            if k not in ("date", "provider"):
+                r[k] = f(v)
+    return rows
+
+
+def load_vat_reference():
+    """VAT percentile table for men, as {age_band: {percentile: grams}}."""
+    p = HEALTH / "vat_reference.csv"
+    if not p.exists():
+        return {}
+    with open(p, newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    bands = [c for c in rows[0] if c != "percentile"]
+    return {b: {int(r["percentile"]): f(r[b]) for r in rows} for b in bands}
+
+
+def vat_percentile(grams, age):
+    """Where a VAT mass falls in the male reference table for that age."""
+    ref = load_vat_reference()
+    band = ("20-29" if age < 30 else "30-39" if age < 40 else "40-49"
+            if age < 50 else "50-59" if age < 60 else "60+")
+    tbl = ref.get(band)
+    if not tbl or grams is None:
+        return None, band
+    ps = sorted(tbl)
+    # Report the lowest percentile whose reference value already exceeds the
+    # measurement -- "at or below the Nth percentile".
+    for pc in ps:
+        if grams <= tbl[pc]:
+            return pc, band
+    return 100, band
 
 
 def d(s):
@@ -169,6 +229,8 @@ class Data:
         self.daily = load("daily")
         self.sleep = load("sleep")
         self.ready = load("readiness")
+        self.weight = sorted(load("weight"), key=lambda r: r["date"])
+        self.dexa = load_dexa()
         for r in self.acts:
             r["_d"] = d(r["date"])
             r["_km"] = f(r["distance_km"])
@@ -556,8 +618,22 @@ def verdict(D):
     print()
     print(f"  Recovery is excellent: resting HR {mean(rhr):.0f}, overnight HRV "
           f"{mean(hrv):.0f}.")
-    print(f"  Acute:chronic load {acwr:.2f} — you are shedding fitness, not risking")
-    print(f"  injury. You have headroom to absorb considerably more work.")
+    # The reading has to follow the number. This sentence used to be hardcoded to
+    # "shedding fitness", which read as false the moment load climbed — it claimed
+    # detraining at an acute:chronic of 1.46. Same thresholds as the TRAINING LOAD
+    # section above, so the two can never disagree.
+    if acwr < 0.8:
+        print(f"  Acute:chronic load {acwr:.2f} — you are shedding fitness, not risking")
+        print(f"  injury. You have headroom to absorb considerably more work.")
+    elif acwr > 1.5:
+        print(f"  Acute:chronic load {acwr:.2f} — a spike. This is the injury-risk")
+        print(f"  window; hold volume flat for a week rather than adding to it.")
+    elif acwr > 1.0:
+        print(f"  Acute:chronic load {acwr:.2f} — a productive build. Keep it here")
+        print(f"  rather than pushing higher; above 1.5 is the spike window.")
+    else:
+        print(f"  Acute:chronic load {acwr:.2f} — maintaining. Room to add work")
+        print(f"  without approaching the 1.5 spike threshold.")
     print()
     print(f"  Running {sess:.1f}x/week at {vol:.0f} km/wk against a plan built on 4x.")
     print(f"  Longest run in 8 weeks: {longest8:.0f} km. Phase 2b starts Sept 28 and")

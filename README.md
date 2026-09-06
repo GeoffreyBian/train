@@ -53,10 +53,12 @@ if you want live queries alongside the local mirror.
 |---|---|---|
 | `data/activities.csv` | one activity | type, distance, duration, pace, HR, cadence, elevation, training effect, load, VO2max |
 | `data/sleep.csv` | one night | score, stage breakdown, resting HR, overnight HRV, respiration, body battery, sleep need |
-| `data/daily.csv` | one day | steps, resting HR, HRV, stress, body battery, intensity minutes, training status, VO2max, heat acclimation |
+| `data/daily.csv` | one day | steps, resting HR, HRV, stress, body battery, intensity minutes, training status, VO2max, heat acclimation, endurance score |
 | `data/readiness.csv` | one morning | readiness score, level, recovery time, acute load, contributing factors |
 | `data/details/<id>.json` | one activity | per-lap splits, time in each HR zone, weather, and a ~160-point trace of HR, pace, elevation, cadence, power |
+| `data/weight.csv` | one weigh-in | body weight and where it came from (device, app, or a DEXA scale) |
 | `data/zones.json` | the athlete | Garmin's own max HR, threshold and zone floors |
+| `~/dev/health/dexa.csv` | one DEXA scan | fat, lean and bone mass by region, visceral fat, bone density, muscle index, resting metabolic rate |
 
 `data/` in this repo is one athlete's real export, published deliberately. If you
 fork this, decide for yourself &mdash; those files are a health record, and the
@@ -94,7 +96,7 @@ Sections, top to bottom:
 
 ### Drilling in
 
-The nav across the top opens three more views, all hash-routed inside the same
+The nav across the top opens four more views, all hash-routed inside the same
 page so it stays a single file:
 
 - **Activities** &mdash; every session, sortable on any column and filterable by
@@ -104,6 +106,7 @@ page so it stays a single file:
 - **Days** &mdash; one row per day: sessions, steps, resting HR, HRV, readiness,
   stress, body battery, training status. A row with no session is a genuine rest
   day; a *missing* row means the watch never synced, which is a different thing.
+- **Health** &mdash; the DEXA scan read against the watch data. See below.
 
 An **activity page** carries the summary tiles, a trace of heart rate, pace,
 elevation and cadence over the distance covered, time in each heart-rate zone,
@@ -123,6 +126,33 @@ build step, no network dependency beyond the webfonts. Every axis scales to the
 data it is given, and the verdict, the findings list and the stat pills are all
 conditional: feed it a different athlete and it reaches different conclusions
 rather than restating fixed ones.
+
+### The Health tab
+
+A DEXA scan is a deep snapshot taken a few times a year; the watch is shallow
+and continuous. The Health tab exists because several useful numbers need both
+and can be computed from neither alone.
+
+The scan supplies a resting metabolic rate measured from fat-free mass, and the
+fat-free mass itself. The watch supplies what is actually burned each day, split
+into training and everything else. Together they produce a maintenance figure
+for *this* athlete rather than a population multiplier, and — more usefully — a
+floor: the intake below which a training day drops under the energy-availability
+threshold and the deficit starts costing lean mass and bone instead of fat.
+
+On this athlete that floor lands *above* average maintenance on session days,
+which means a flat daily deficit is not available at all. The page says so, and
+sizes the fat-loss targets against what the energy budget can actually deliver
+before the taper rather than against a round number.
+
+It also carries what the watch alone cannot interpret: visceral fat against the
+male reference curve, bone density as a stress-fracture read for the marathon
+block, lean mass by segment (Hyrox loads the upper body far harder than a
+running program does), and left-right balance.
+
+Scans live in `~/dev/health/dexa.csv`, outside this repo — see the README there
+for how to add one. With no scan on file the tab renders an empty state and
+nothing else changes.
 
 ### Try it without a Garmin account
 
@@ -213,11 +243,23 @@ an apparent decline. Every efficiency figure is computed on flat runs only
 (`FLAT_M_PER_KM`), shown beside the all-terrain number so the gap is visible.
 Heat acclimation, tracked in `daily.csv`, is the second confounder.
 
+**Body composition arithmetic.** A DEXA report prints two different body-fat
+percentages for the same body and does not always label which is which. Tissue
+%fat is `fat / (fat + lean)`; total %fat divides by total mass including bone.
+Reference tables use the first. Mixing them up moves the number by about a
+point, which is enough to cross a classification band. Both are stored in
+`dexa.csv` and the tab says which it is showing. Likewise, arms plus legs plus
+trunk do not sum to total lean mass — head and neck are a separate region — so
+the segment chart states its own denominator.
+
 ## Configuration
 
 Athlete constants sit at the top of `analyze.py` (`MAX_HR`, the race date, the
-aerobic HR band) and `week_plan.py` (`LONG_STEP`, `LONG_CAP`, `WEEK_FLOOR`,
-`REP_PACE`). Set them before trusting the zone splits.
+aerobic HR band, `EA_FLOOR` and the body-composition reference bands) and
+`week_plan.py` (`LONG_STEP`, `LONG_CAP`, `WEEK_FLOOR`, `REP_PACE`). Set them
+before trusting the zone splits.
+
+`HEALTH_DIR` overrides where DEXA scans are read from (default `~/dev/health`).
 
 ## Notes
 
@@ -230,3 +272,8 @@ aerobic HR band) and `week_plan.py` (`LONG_STEP`, `LONG_CAP`, `WEEK_FLOOR`,
   drives a real browser instead.
 - HRV, body battery, training readiness and race predictions need a compatible
   watch (Forerunner 265+, Fenix 7+, Venu 3+). Those columns stay empty otherwise.
+- Endurance score is reported weekly by Garmin, not daily, so that column in
+  `daily.csv` carries one value per week rather than one per day.
+- The calorie and energy-availability figures on the Health tab are estimates
+  built on a *predicted* resting metabolism, not measurements, and the guidance
+  around them is general sports-nutrition practice rather than medical advice.
