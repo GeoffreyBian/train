@@ -1,8 +1,8 @@
 {
- "week_start": "2026-08-31",
- "week_end": "2026-09-06",
- "week_label": "2026-W36",
- "data_through": "2026-09-05",
+ "week_start": "2026-09-07",
+ "week_end": "2026-09-13",
+ "week_label": "2026-W37",
+ "data_through": "2026-09-08",
  "sessions": [
   {
    "id": "reps",
@@ -25,23 +25,16 @@
    "target": {
     "min_km": 4.2
    },
-   "done": {
-    "date": "2026-09-01",
-    "day": "Tue",
-    "name": "Richmond Running",
-    "km": 10.6,
-    "pace": 6.13,
-    "hr": 140
-   }
+   "done": null
   },
   {
    "id": "long",
    "day": "Sat",
    "kind": "run_long",
-   "title": "Long run \u2014 13 km easy",
-   "detail": "Conversational, HR under 155. Up 2 km from your 11.2 km ceiling \u2014 the only sustainable way back to the 22 km Phase 2b wants.",
+   "title": "Long run \u2014 12 km easy",
+   "detail": "Conversational, HR under 155. Up 2 km from your 10.6 km ceiling \u2014 the only sustainable way back to the 22 km Phase 2b wants.",
    "target": {
-    "min_km": 11.0
+    "min_km": 10.6
    },
    "done": null
   },
@@ -56,36 +49,17 @@
     "min_km": 4.0
    },
    "optional": true,
-   "done": {
-    "date": "2026-09-03",
-    "day": "Thu",
-    "name": "Richmond Running",
-    "km": 8.2,
-    "pace": 5.44,
-    "hr": 155
-   }
+   "done": null
   }
  ],
  "unclaimed": [
   {
-   "date": "2026-09-04",
-   "name": "Richmond Running",
-   "type": "running",
-   "km": 7.0
-  },
-  {
-   "date": "2026-09-05",
-   "name": "North Vancouver District Hiking",
+   "date": "2026-09-07",
+   "name": "Squamish-Lillooet Hiking",
    "type": "hiking",
-   "km": 2.8
-  },
-  {
-   "date": "2026-09-05",
-   "name": "North Vancouver District Hiking",
-   "type": "hiking",
-   "km": 2.2
+   "km": 33.0
   }
  ],
- "km_done": 25.8,
+ "km_done": 0,
  "km_floor": 20.0
 }
