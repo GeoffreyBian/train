@@ -1,4 +1,5 @@
 date,activity_id,name,type,distance_km,duration_min,pace_min_km,avg_hr,max_hr,calories,elev_gain_m,avg_cadence,aerobic_te,anaerobic_te,training_load,vo2max
+2026-09-09,24304423613,Vancouver Running,running,9.0,57.1,6.34,140.0,158.0,671.0,123.0,152.0,3.0,0.0,75.0,55.0
 2026-09-07,24278682624,Squamish-Lillooet Hiking,hiking,33.0,607.4,18.41,118.0,163.0,3856.0,2175.0,69.0,3.4,2.0,121.0,
 2026-09-05,24251924235,North Vancouver District Hiking,hiking,2.75,64.3,23.42,108.0,125.0,377.0,2.0,58.0,1.2,0.0,14.0,
 2026-09-05,24251180308,North Vancouver District Hiking,hiking,2.25,59.4,26.38,161.0,180.0,849.0,779.0,56.0,4.3,2.2,208.0,

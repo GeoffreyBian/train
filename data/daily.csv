@@ -1,5 +1,6 @@
 date,steps,resting_hr,hrv_last_night,hrv_status,stress_avg,body_battery_high,body_battery_low,intensity_min_moderate,intensity_min_vigorous,active_calories,floors_climbed,training_status,vo2max,fitness_age,heat_acclimation_pct,endurance_score
-2026-09-09,78,47,90,NONE,13,89,23,0,0,1.0,0.0,PRODUCTIVE_2,55.3,,,6447
+2026-09-10,3258,46,97,NONE,10,100,32,1,3,160.0,7.8,PRODUCTIVE_2,55.4,,,6469
+2026-09-09,9138,47,90,NONE,12,89,16,7,51,594.0,42.0,PRODUCTIVE_2,55.4,,1,6447
 2026-09-08,9367,49,89,NONE,23,74,12,0,0,391.0,11.0,PRODUCTIVE_7,55.3,,,6462
 2026-09-07,49648,50,85,NONE,33,80,8,215,165,2982.0,655.0,PRODUCTIVE_7,55.3,,,
 2026-09-06,3131,45,94,NONE,16,97,22,0,0,176.0,4.2,PRODUCTIVE_7,55.3,,,
