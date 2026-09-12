@@ -2,7 +2,7 @@
  "week_start": "2026-09-07",
  "week_end": "2026-09-13",
  "week_label": "2026-W37",
- "data_through": "2026-09-10",
+ "data_through": "2026-09-12",
  "sessions": [
   {
    "id": "reps",
@@ -56,7 +56,14 @@
     "min_km": 4.0
    },
    "optional": true,
-   "done": null
+   "done": {
+    "date": "2026-09-11",
+    "day": "Fri",
+    "name": "Vancouver Running",
+    "km": 5.0,
+    "pace": 5.63,
+    "hr": 149
+   }
   }
  ],
  "unclaimed": [
@@ -65,8 +72,14 @@
    "name": "Squamish-Lillooet Hiking",
    "type": "hiking",
    "km": 33.0
+  },
+  {
+   "date": "2026-09-10",
+   "name": "Ice Hockey",
+   "type": "ice_hockey",
+   "km": null
   }
  ],
- "km_done": 9.0,
+ "km_done": 14.0,
  "km_floor": 20.0
 }
