@@ -2,7 +2,7 @@
  "week_start": "2026-09-07",
  "week_end": "2026-09-13",
  "week_label": "2026-W37",
- "data_through": "2026-09-12",
+ "data_through": "2026-09-13",
  "sessions": [
   {
    "id": "reps",
@@ -43,7 +43,14 @@
    "target": {
     "min_km": 10.6
    },
-   "done": null
+   "done": {
+    "date": "2026-09-13",
+    "day": "Sun",
+    "name": "Vancouver Running",
+    "km": 13.7,
+    "pace": 6.69,
+    "hr": 138
+   }
   },
   {
    "id": "tempo",
@@ -78,8 +85,14 @@
    "name": "Ice Hockey",
    "type": "ice_hockey",
    "km": null
+  },
+  {
+   "date": "2026-09-12",
+   "name": "Strength",
+   "type": "strength_training",
+   "km": null
   }
  ],
- "km_done": 14.0,
+ "km_done": 27.7,
  "km_floor": 20.0
 }
