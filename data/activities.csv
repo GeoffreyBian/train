@@ -1,4 +1,6 @@
 date,activity_id,name,type,distance_km,duration_min,pace_min_km,avg_hr,max_hr,calories,elev_gain_m,avg_cadence,aerobic_te,anaerobic_te,training_load,vo2max
+2026-09-15,24372346284,Strength,strength_training,,60.0,,112.0,149.0,392.0,,,1.3,0.4,21.0,
+2026-09-14,24365012589,Vancouver Running,running,8.0,41.7,5.21,151.0,171.0,579.0,68.0,164.0,3.4,0.0,111.0,56.0
 2026-09-14,24359437279,Strength,strength_training,,60.6,,114.0,159.0,414.0,,,1.7,2.1,50.0,
 2026-09-13,24351291837,Vancouver Running,running,13.71,91.6,6.69,138.0,167.0,993.0,60.0,141.0,3.6,0.5,131.0,55.0
 2026-09-12,24339806120,Strength,strength_training,,67.5,,119.0,166.0,476.0,,,2.1,2.6,83.0,
