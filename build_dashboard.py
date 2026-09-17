@@ -13,7 +13,7 @@ import re
 import statistics as st
 import sys
 from collections import Counter, defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -459,7 +459,11 @@ def build_data():
 
     out["hdr"] = {
         "days": left, "weeks": left // 7, "race": A.HYROX.isoformat(),
-        "through": D.today.isoformat(), "runs": len(runs),
+        "through": D.today.isoformat(),
+        # Distinct from "through": the data can be current while the wording
+        # around it was written against an older build.
+        "generated": datetime.now().astimezone().isoformat(timespec="minutes"),
+        "runs": len(runs),
         "km": round(sum(r["_km"] for r in runs)),
         "maxhr": A.MAX_HR, "lthr": A.LTHR,
     }
@@ -487,8 +491,50 @@ def build_data():
     raw_last = out["eff"][-1]["all"] if out["eff"] else 0
     vols = [w["km"] for w in out["weekly"]]
     cv = round(st.pstdev(vols) / A.mean(vols) * 100) if vols else 0
-    fast = [r for r in runs if r["_pace"] and r["_pace"] < 5.0]
-    kmish = [r for r in runs if 0.8 <= (r["_km"] or 0) <= 1.5]
+    # --- interval and speed work are read from LAPS, not activity totals.
+    # A 5x1km session sits inside a 7 km run, so activity distance never sees
+    # it, and the session average hides reps run two minutes a km quicker.
+    # Garmin auto-laps every kilometre, so a lap only counts as a rep when it
+    # is both meaningfully faster than the session average and bracketed by
+    # short manual recovery laps; otherwise every steady run looks like
+    # intervals.
+    def _laps(r):
+        p = A.DATA / "details" / f"{r['activity_id']}.json"
+        if not p.exists():
+            return []
+        try:
+            return [l for l in (json.loads(p.read_text()).get("laps") or [])
+                    if l.get("km")]
+        except Exception:
+            return []
+
+    reps, fast_days = [], set()
+    for r in runs:
+        laps = _laps(r)
+        avg = r["_pace"]
+        if any(l.get("pace") and l["pace"] < 5.0 and l["km"] >= 0.4 for l in laps):
+            fast_days.add(r["_d"])
+        if len(laps) < 4 or not avg:
+            continue
+        rp = [l for l in laps if 0.8 <= l["km"] <= 1.5
+              and l.get("pace") and l["pace"] <= avg - 0.75]
+        rc = [l for l in laps if l["km"] < 0.5 and l.get("pace") and l["pace"] > avg]
+        if len(rp) >= 3 and len(rc) >= 2:
+            reps.append({"d": r["_d"], "n": len(rp),
+                         "best": min(l["pace"] for l in rp)})
+    reps.sort(key=lambda x: x["d"], reverse=True)
+    fast = sorted(fast_days, reverse=True)
+    kmish = reps
+
+    # --- sleep coverage over a recent window as well as all time. Lifetime
+    # coverage moves too slowly to notice a habit that changed last fortnight.
+    sleep_days = {r["date"] for r in D.sleep}
+
+    def _cov(w):
+        days = [(D.today - timedelta(days=i)).isoformat() for i in range(w)]
+        return round(100 * sum(1 for d in days if d in sleep_days) / w)
+
+    cov14, cov30 = _cov(14), _cov(30)
     by_d = defaultdict(list)
     for r in D.acts:
         by_d[r["_d"]].append(r)
@@ -529,11 +575,19 @@ def build_data():
         "elev_hi": str(elev_by_q.get(cur_q, 0)),
         "elev_lo": str(min(elev_by_q.values()) if elev_by_q else 0),
         "q_lo": best_q.replace("2026-", "").replace("2025-", ""),
-        "fast_gap": str((D.today - max(r["_d"] for r in fast)).days) if fast else "\u2014",
-        "fast_last": max(r["_d"] for r in fast).strftime("%-d %B") if fast else "\u2014",
+        "fast_gap": str((D.today - fast[0]).days) if fast else "\u2014",
+        "fast_last": fast[0].strftime("%-d %B") if fast else "\u2014",
         "fast_n": str(len(fast)),
         "strength_n": str(len(strength)),
         "kmish_n": str(len(kmish)),
+        "rep_n": str(len(reps)),
+        "rep_last": reps[0]["d"].strftime("%-d %B") if reps else "\u2014",
+        "rep_gap": str((D.today - reps[0]["d"]).days) if reps else "\u2014",
+        "rep_reps": str(reps[0]["n"]) if reps else "0",
+        "rep_best": f"{int(reps[0]['best'])}:{round(reps[0]['best'] % 1 * 60):02d}"
+                    if reps else "\u2014",
+        "sleep_cov_14": str(cov14),
+        "sleep_cov_30": str(cov30),
         "comp_n": str(len(comp)),
         "long_n": str(len(out["longruns"])),
         "long_last": (A.d(out["longruns"][-1]["d"]).strftime("%-d %B")
@@ -581,6 +635,37 @@ def build_data():
                  and r["_d"] > D.today - timedelta(days=45)]
     hk_back = min((r["_d"] for r in hk_recent), default=None)
     hk_rate = A.mean(hk_in) if hk_in else 0
+    # Sleep coverage is judged on the last fortnight, not all time. A habit
+    # changed two weeks ago barely moves a 355-night average, so the lifetime
+    # figure keeps scolding about something already fixed.
+    if cov14 >= 80:
+        n["sleep_sev"] = "good"
+        n["sleep_trend"] = "recording"
+        n["sleep_head"] = f"You are recording {cov14}% of nights now"
+        n["sleep_body"] = (
+            f"That is up from {n['sleep_cov']}% across the whole year, so the "
+            "overnight habit is real and recent. Worth knowing what it does not fix "
+            "yet: HRV, resting HR and readiness baselines elsewhere on this page are "
+            f"still computed over months that were mostly unmeasured. Give it three "
+            "or four more weeks at this rate before trusting a trend in them.")
+    elif cov14 >= 50:
+        n["sleep_sev"] = "warn"
+        n["sleep_trend"] = "improving"
+        n["sleep_head"] = f"Overnight wear is up, at {cov14}% of the last fortnight"
+        n["sleep_body"] = (
+            f"Against {n['sleep_cov']}% for the year, the direction is right but the "
+            "gaps still land on the metrics that matter most: HRV, body battery and "
+            "much of readiness exist only on nights you wore it.")
+    else:
+        n["sleep_sev"] = "warn"
+        n["sleep_trend"] = "still sparse"
+        n["sleep_head"] = f"You are blind on {100 - cov14}% of recent nights"
+        n["sleep_body"] = (
+            "HRV, body battery, sleep score and much of training readiness all derive "
+            f"from overnight wear. At {cov14}% coverage over the last fortnight most "
+            "of your recovery data simply does not exist, and the gaps get silently "
+            "backfilled with worse numbers. This is the cheapest fix on this page.")
+
     n["hk_sentence"] = (
         f"Ice hockey ran <strong>{n['hk_lo']}&ndash;{n['hk_hi']} sessions a month</strong> "
         f"last season, went quiet in the spring, and <strong>is back</strong> &mdash; "
@@ -642,12 +727,26 @@ def build_data():
                              "terrain does not explain it.")
 
     fnd = []
-    if not kmish:
-        fnd.append({"sev": "crit", "num": "0", "title": "1 km efforts, ever",
-                    "body": "Not one run in twelve months falls in the 0.8\u20131.5 km "
-                            "band. The race is that distance, eight times, on tired "
-                            "legs. You have never rehearsed the single repeating "
+    if not reps:
+        fnd.append({"sev": "crit", "num": "0", "title": "1 km rep sessions, ever",
+                    "body": "No run in twelve months carries repeated efforts in the "
+                            "0.8\u20131.5 km band run appreciably faster than the rest of "
+                            "the session. The race is that distance, eight times, on "
+                            "tired legs. You have never rehearsed the single repeating "
                             "unit of the event."})
+    elif (D.today - reps[0]["d"]).days > 21:
+        fnd.append({"sev": "warn", "num": n["rep_gap"],
+                    "title": "days since a 1 km rep session",
+                    "body": f"{n['rep_n']} in the last twelve months, the most recent "
+                            f"on {n['rep_last']}. The race is eight of these off tired "
+                            "legs, so it wants to be weekly rather than occasional."})
+    else:
+        fnd.append({"sev": "good", "num": n["rep_reps"],
+                    "title": f"\u00d7 1 km reps on {n['rep_last']}",
+                    "body": f"Best rep {n['rep_best']}/km. That is the race's repeating "
+                            f"unit, rehearsed \u2014 and it is {n['rep_n']} such sessions "
+                            "in the year. Hold it weekly through Phase 2b and this "
+                            "stops being the gap it has been."})
     if not strength:
         fnd.append({"sev": "crit", "num": "0",
                     "title": "strength or station sessions logged",
@@ -655,12 +754,12 @@ def build_data():
                             "circuit. Garmin has no record of any. If it is happening "
                             "untracked it still fatigues you while staying invisible "
                             "to readiness and load."})
-    if fast and (D.today - max(r["_d"] for r in fast)).days > 45:
+    if fast and (D.today - fast[0]).days > 45:
         fnd.append({"sev": "warn", "num": n["fast_gap"],
-                    "title": "days since a run under 5:00/km",
+                    "title": "days since a kilometre under 5:00",
                     "body": f"Last one was {n['fast_last']}. You have {n['fast_n']} "
-                            "sub-5:00 runs in the year, and the plan\u2019s interval "
-                            "session has not appeared in the data."})
+                            "days in the year carrying a sub-5:00 kilometre, counted "
+                            "lap by lap rather than by whole-run average."})
     if len(comp) < 12:
         fnd.append({"sev": "warn", "num": n["comp_n"],
                     "title": "days pairing a run with a second session",
@@ -684,6 +783,21 @@ def build_data():
                             "on top of it."})
     out["findings"] = fnd
 
+    # The lede has to count the findings rather than assert a number, or it
+    # keeps saying "three things are absent" over a list that has changed.
+    gaps = sum(1 for f in fnd if f["sev"] != "good")
+    wins = len(fnd) - gaps
+    words = {0: "nothing", 1: "one thing", 2: "two things", 3: "three things",
+             4: "four things", 5: "five things"}
+    if gaps and wins:
+        n["missing_lede"] = (f"{words.get(gaps, str(gaps) + ' things')} still "
+                             f"missing, and {'one' if wins == 1 else str(wins)} "
+                             "that no longer is.").capitalize()
+    elif gaps:
+        n["missing_lede"] = f"{words.get(gaps, str(gaps) + ' things')} are simply absent.".capitalize()
+    else:
+        n["missing_lede"] = "nothing on this list is missing any more.".capitalize()
+
     # --- what to change, generated so resolved items drop off the page instead
     # of nagging about something already fixed.
     ch = []
@@ -698,12 +812,18 @@ def build_data():
                    "b": "Add roughly 2 km a week. That reaches the low end of the Phase "
                         "2b requirement without a doubling jump, and it is the same base "
                         "the marathon needs afterwards."})
-    if not kmish:
+    if not reps or (D.today - reps[0]["d"]).days > 14:
         ch.append({"t": "Add one 1 km repeat session a week, it is literally the race",
-                   "b": "6–8 × 1 km at target race pace with short recovery. At "
-                        f"{n['fast_gap']} days without genuine speed work the first few "
-                        "sessions rebuild a capacity you already had in April, not a "
-                        "new one."})
+                   "b": "6–8 × 1 km at target race pace with short recovery. "
+                        + (f"The last one was {n['rep_last']}, {n['rep_gap']} days ago."
+                           if reps else "There is no such session on record yet.")})
+    else:
+        ch.append({"t": "Build the rep session out toward race distance",
+                   "b": f"{n['rep_reps']} × 1 km on {n['rep_last']}, best rep "
+                        f"{n['rep_best']}/km, is the right session. The race is eight "
+                        "of them off tired legs, so the next step is more reps rather "
+                        "than faster ones, and eventually reps that start on legs "
+                        "already loaded by a station."})
     if not strength:
         ch.append({"t": "Log the strength and station work, or plan around its absence",
                    "b": "Right now the two are indistinguishable in the data. If you are "
@@ -735,11 +855,19 @@ def build_data():
                         f"{n['acwr']}× acute-to-chronic ratio. Hold the volume where "
                         "it is for one week and let chronic load catch up. The engine is "
                         "not the constraint right now; the recovery budget is."})
-    if int(n["sleep_cov"]) < 60:
+    if cov14 < 60:
         ch.append({"t": "Wear the watch overnight",
-                   "b": f"Zero training cost, and it turns {n['sleep_blind']}% of your "
-                        "recovery data from guesswork into measurement — right as "
-                        "the load starts to climb."})
+                   "b": f"Only {cov14}% of the last fortnight is recorded. Zero "
+                        "training cost, and it turns most of your recovery data from "
+                        "guesswork into measurement — right as the load climbs."})
+    elif cov30 < 80:
+        ch.append({"t": "Keep the overnight streak going",
+                   "b": f"{cov14}% of the last fortnight is recorded against "
+                        f"{n['sleep_cov']}% over the whole year, so the habit is "
+                        "clearly new. HRV and readiness need a few more weeks at this "
+                        "rate before their baselines mean anything; the year-long "
+                        "averages elsewhere on this page are still dominated by the "
+                        "months you did not wear it."})
     out["changes"] = ch
 
     # --- per-activity detail for the drill-down views

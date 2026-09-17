@@ -367,7 +367,7 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
     <span class="note">12 months of activity records</span>
   </div>
   <p class="sub">Hyrox is eight 1 km runs alternating with eight stations. Read your
-  activity log against that description and three things are simply absent.</p>
+  activity log against that description: {{missing_lede}}</p>
 
   <div id="findings"></div>
 
@@ -424,19 +424,17 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
       <tr><td>Resting HR (overnight only)</td><td class="n">{{rhr_exact}} bpm</td><td>{{rhr_base}}</td><td>Strong, stable</td></tr>
       <tr><td>Overnight HRV</td><td class="n">{{hrv_exact}}</td><td>{{hrv_base}}</td><td>Rising &mdash; well recovered</td></tr>
       <tr><td>Training readiness</td><td class="n">{{rdy}}</td><td>{{rdy_all}} (12mo)</td><td>Moderate</td></tr>
-      <tr><td>Sleep, nights recorded</td><td class="n">{{sleep_n}} of {{sleep_span}}</td><td>&mdash;</td><td>{{sleep_cov}}% coverage</td></tr>
+      <tr><td>Sleep, nights recorded</td><td class="n">{{sleep_n}} of {{sleep_span}}</td><td>&mdash;</td><td>{{sleep_cov}}% all time</td></tr>
+      <tr><td>Sleep, last 14 nights</td><td class="n">{{sleep_cov_14}}%</td><td>{{sleep_cov_30}}% over 30d</td><td>{{sleep_trend}}</td></tr>
       <tr><td>Sleep on those nights</td><td class="n">{{sleep_avg}} h</td><td>{{sleep_need}} h needed</td><td>short</td></tr>
       <tr><td>Nights under 7 h</td><td class="n">{{sleep_short}} of {{sleep_n}}</td><td>&mdash;</td><td>&nbsp;</td></tr>
     </tbody>
   </table>
-  <div class="finding warn" style="margin-top:18px">
+  <div class="finding {{sleep_sev}}" style="margin-top:18px">
     <div class="stripe"></div>
     <div class="fb">
-      <h3>You are blind on {{sleep_blind}}% of nights</h3>
-      <p>HRV, body battery, sleep score and much of training readiness all derive
-      from overnight wear. At {{sleep_cov}}% coverage most of your recovery data simply does
-      not exist &mdash; and the gaps get silently backfilled with worse numbers.
-      This is the cheapest fix on this page: wear the watch to bed.</p>
+      <h3>{{sleep_head}}</h3>
+      <p>{{sleep_body}}</p>
     </div>
   </div>
 </section>
@@ -1367,12 +1365,19 @@ route();
     { day: "numeric", month: "short", year: "numeric" });
   const thru = new Date(h.through + "T00:00:00").toLocaleDateString("en-GB",
     { day: "numeric", month: "short", year: "numeric" });
+  // Separate from the data date: every conclusion on this page was drawn at
+  // this moment, so a stale reading is visible rather than inferred.
+  const gen = h.generated
+    ? new Date(h.generated).toLocaleString("en-GB",
+        { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+    : thru;
   document.getElementById("clock").innerHTML =
     '<span class="days">' + h.days + "</span>"
     + '<span class="unit">days to Hyrox<br>Vancouver \u00b7 Open</span>'
     + '<span class="meta">Race day <b>' + race + "</b> \u00b7 " + h.weeks
     + " weeks out<br>Garmin data through <b>" + thru + "</b><br>"
-    + h.runs + " runs \u00b7 " + h.km + " km analysed</span>";
+    + h.runs + " runs \u00b7 " + h.km + " km analysed<br>"
+    + "Insights generated <b>" + gen + "</b></span>";
 
   const tile = (k, v, sm, sub, state, pill) =>
     '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v
