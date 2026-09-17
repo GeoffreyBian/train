@@ -570,6 +570,31 @@ def build_data():
     under = sess8 < 3.2 or acwr < 0.9
     vol4 = A.mean([wk_km[k] for k in sorted(wk_km)[-4:]]) or 0
 
+    # --- recent-window reads. The 60-day means above describe the block; a ramp
+    # shows up in the last week first, and the block average hides it.
+    rdy7 = [A.f(r["score"]) for r in D.ready
+            if A.f(r.get("score")) and A.d(r["date"]) > D.today - timedelta(days=7)]
+    rdy7_mean = A.mean(rdy7) if rdy7 else None
+    ramping = rdy7_mean is not None and rdy7_mean < 58 and acwr > 1.2
+
+    hk_recent = [r for r in D.acts if r["_type"] == "ice_hockey"
+                 and r["_d"] > D.today - timedelta(days=45)]
+    hk_back = min((r["_d"] for r in hk_recent), default=None)
+    hk_rate = A.mean(hk_in) if hk_in else 0
+    n["hk_sentence"] = (
+        f"Ice hockey ran <strong>{n['hk_lo']}&ndash;{n['hk_hi']} sessions a month</strong> "
+        f"last season, went quiet in the spring, and <strong>is back</strong> &mdash; "
+        f"{len(hk_recent)} session{'s' if len(hk_recent) != 1 else ''} since "
+        f"{hk_back.strftime('%-d %B')}. At last season's rate that is about "
+        f"{hk_rate:.0f} high-intensity sessions a month landing on Phase 2b and the "
+        "taper, and the plan still does not mention hockey at all."
+        ) if hk_recent else (
+        f"Ice hockey ran <strong>{n['hk_lo']}&ndash;{n['hk_hi']} sessions a month across "
+        "the season</strong>, then stopped completely in the spring. If the season "
+        f"restarts on the same calendar, roughly <strong>{n['hk_total']} high-intensity "
+        "sessions</strong> land straight on top of Phase 2b and the taper &mdash; and "
+        "your plan does not mention hockey at all.")
+
     if rec_ok and under:
         head = "The body is fine. The training is the problem."
     elif not rec_ok and not under:
@@ -648,7 +673,74 @@ def build_data():
                     "body": "Phase 2b expects 22\u201326 km and the marathon behind it "
                             "needs 30 km+. Build back at about 2 km a week rather "
                             "than jumping."})
+    if ramping:
+        fnd.append({"sev": "warn", "num": f"{rdy7_mean:.0f}",
+                    "title": "average readiness over the last seven days",
+                    "body": f"Seven-day load is running {n['acwr']}× the 28-day "
+                            f"average while readiness has averaged {rdy7_mean:.0f}. "
+                            "The twelve-month picture still reads recovered, and that "
+                            "is the number the verdict above is built on — but this "
+                            "week does not. Absorb the ramp before stacking intensity "
+                            "on top of it."})
     out["findings"] = fnd
+
+    # --- what to change, generated so resolved items drop off the page instead
+    # of nagging about something already fixed.
+    ch = []
+    if cv > 30:
+        ch.append({"t": "Put a floor under the week before raising the ceiling",
+                   "b": f"Three runs every week beats four-then-one. Your {cv}% "
+                        "week-to-week variation is doing more damage than your average "
+                        "mileage suggests. Target a floor of 20 km, every week, before "
+                        "chasing a 35 km week."})
+    if long8 < 20:
+        ch.append({"t": f"Rebuild the long run from {long8:.0f} km, not from the plan's 22",
+                   "b": "Add roughly 2 km a week. That reaches the low end of the Phase "
+                        "2b requirement without a doubling jump, and it is the same base "
+                        "the marathon needs afterwards."})
+    if not kmish:
+        ch.append({"t": "Add one 1 km repeat session a week, it is literally the race",
+                   "b": "6–8 × 1 km at target race pace with short recovery. At "
+                        f"{n['fast_gap']} days without genuine speed work the first few "
+                        "sessions rebuild a capacity you already had in April, not a "
+                        "new one."})
+    if not strength:
+        ch.append({"t": "Log the strength and station work, or plan around its absence",
+                   "b": "Right now the two are indistinguishable in the data. If you are "
+                        "lifting, record it so load and readiness mean something. If you "
+                        "are not, that is the larger finding."})
+    else:
+        ch.append({"t": "Strength is landing now; the stations still are not",
+                   "b": f"{len(strength)} lifting sessions are on record, so that half of "
+                        "the plan is no longer invisible to load and readiness. What is "
+                        "still missing is the station work itself — sled, wall balls, "
+                        f"burpee broad jumps — and the {n['comp_n']} days all year "
+                        "that put a run next to a second session."})
+    if hk_recent:
+        ch.append({"t": "Budget the hockey that is already back",
+                   "b": f"{len(hk_recent)} sessions since "
+                        f"{hk_back.strftime('%-d %B')}. This has stopped being a "
+                        "decision you make in advance. Either drop a running intensity "
+                        "day in the weeks hockey lands, or accept that the plan is a "
+                        "four-session week on paper and a three-session week in fact."})
+    else:
+        ch.append({"t": "Decide about hockey before the season decides for you",
+                   "b": f"Either budget {n['hk_lo']}–{n['hk_hi']} sessions a month "
+                        "into the peak block and cut running intensity to match, or sit "
+                        "out the first half. Both work. Being surprised by it in "
+                        "November does not."})
+    if ramping:
+        ch.append({"t": "Let this ramp settle before starting the next one",
+                   "b": f"Readiness has averaged {rdy7_mean:.0f} for a week against a "
+                        f"{n['acwr']}× acute-to-chronic ratio. Hold the volume where "
+                        "it is for one week and let chronic load catch up. The engine is "
+                        "not the constraint right now; the recovery budget is."})
+    if int(n["sleep_cov"]) < 60:
+        ch.append({"t": "Wear the watch overnight",
+                   "b": f"Zero training cost, and it turns {n['sleep_blind']}% of your "
+                        "recovery data from guesswork into measurement — right as "
+                        "the load starts to climb."})
+    out["changes"] = ch
 
     # --- per-activity detail for the drill-down views
     det, index = {}, []
