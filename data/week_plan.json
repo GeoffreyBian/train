@@ -2,7 +2,7 @@
  "week_start": "2026-09-14",
  "week_end": "2026-09-20",
  "week_label": "2026-W38",
- "data_through": "2026-09-18",
+ "data_through": "2026-09-19",
  "sessions": [
   {
    "id": "reps",
@@ -50,7 +50,14 @@
    "target": {
     "min_km": 13.2
    },
-   "done": null
+   "done": {
+    "date": "2026-09-19",
+    "day": "Sat",
+    "name": "Vancouver Running",
+    "km": 15.1,
+    "pace": 6.58,
+    "hr": 139
+   }
   },
   {
    "id": "tempo",
@@ -98,6 +105,6 @@
    "km": 7.1
   }
  ],
- "km_done": 15.2,
+ "km_done": 30.3,
  "km_floor": 20.0
 }
