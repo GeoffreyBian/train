@@ -2,7 +2,7 @@
  "week_start": "2026-09-14",
  "week_end": "2026-09-20",
  "week_label": "2026-W38",
- "data_through": "2026-09-17",
+ "data_through": "2026-09-18",
  "sessions": [
   {
    "id": "reps",
@@ -90,6 +90,12 @@
    "name": "Strength",
    "type": "strength_training",
    "km": null
+  },
+  {
+   "date": "2026-09-18",
+   "name": "North Vancouver District Hiking",
+   "type": "hiking",
+   "km": 7.1
   }
  ],
  "km_done": 15.2,

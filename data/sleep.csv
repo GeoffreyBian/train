@@ -1,5 +1,6 @@
 date,score,quality,total_h,deep_h,light_h,rem_h,awake_h,resting_hr,avg_hr,avg_hrv,hrv_7d_avg,hrv_status,avg_spo2,avg_respiration,body_battery_change,sleep_need_h,skin_temp_c
-2026-09-17,90,EXCELLENT,7.57,1.88,3.9,1.78,0.0,47,52.0,84.0,92.0,BALANCED,,16.5,70,8.67,
+2026-09-18,69,FAIR,5.47,2.32,2.5,0.65,0.37,45,48.0,98.0,91.0,BALANCED,,16.6,74,8.0,
+2026-09-17,90,EXCELLENT,7.57,1.88,3.9,1.78,0.0,46,52.0,84.0,92.0,BALANCED,,16.5,70,8.67,
 2026-09-16,74,FAIR,6.06,1.03,3.87,1.17,0.03,50,55.0,93.0,94.0,BALANCED,,16.2,53,8.0,
 2026-09-15,92,EXCELLENT,8.3,1.52,5.22,1.57,0.23,46,51.0,95.0,93.0,BALANCED,,15.8,77,8.0,
 2026-09-14,87,GOOD,7.77,1.67,4.33,1.78,0.35,48,53.0,89.0,92.0,BALANCED,,16.7,66,8.0,
