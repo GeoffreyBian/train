@@ -1,4 +1,6 @@
 date,activity_id,name,type,distance_km,duration_min,pace_min_km,avg_hr,max_hr,calories,elev_gain_m,avg_cadence,aerobic_te,anaerobic_te,training_load,vo2max
+2026-09-21,24444936775,Strength,strength_training,,54.2,,112.0,143.0,364.0,,,1.3,0.6,23.0,
+2026-09-20,24436485370,Strength,strength_training,,59.5,,131.0,175.0,519.0,,,2.5,2.9,123.0,
 2026-09-19,24423592722,Vancouver Running,running,15.1,99.4,6.58,139.0,172.0,1144.0,203.0,148.0,3.4,0.0,115.0,56.0
 2026-09-18,24409949124,North Vancouver District Hiking,hiking,7.06,248.2,35.18,91.0,156.0,1070.0,493.0,34.0,2.2,0.2,40.0,
 2026-09-17,24398015835,Vancouver Running,running,7.19,44.2,6.14,149.0,185.0,538.0,9.0,135.0,3.3,2.2,136.0,56.0

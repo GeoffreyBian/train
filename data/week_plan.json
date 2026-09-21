@@ -1,8 +1,8 @@
 {
- "week_start": "2026-09-14",
- "week_end": "2026-09-20",
- "week_label": "2026-W38",
- "data_through": "2026-09-20",
+ "week_start": "2026-09-21",
+ "week_end": "2026-09-27",
+ "week_label": "2026-W39",
+ "data_through": "2026-09-21",
  "sessions": [
   {
    "id": "reps",
@@ -14,14 +14,7 @@
     "max_pace": 5.4,
     "min_km": 5.0
    },
-   "done": {
-    "date": "2026-09-14",
-    "day": "Mon",
-    "name": "Vancouver Running",
-    "km": 8.0,
-    "pace": 5.21,
-    "hr": 151
-   }
+   "done": null
   },
   {
    "id": "easy",
@@ -32,32 +25,18 @@
    "target": {
     "min_km": 4.2
    },
-   "done": {
-    "date": "2026-09-17",
-    "day": "Thu",
-    "name": "Vancouver Running",
-    "km": 7.2,
-    "pace": 6.14,
-    "hr": 149
-   }
+   "done": null
   },
   {
    "id": "long",
    "day": "Sat",
    "kind": "run_long",
-   "title": "Long run \u2014 16 km easy",
-   "detail": "Conversational, HR under 155. Up 2 km from your 13.7 km ceiling \u2014 the only sustainable way back to the 22 km Phase 2b wants.",
+   "title": "Long run \u2014 17 km easy",
+   "detail": "Conversational, HR under 155. Up 2 km from your 15.1 km ceiling \u2014 the only sustainable way back to the 22 km Phase 2b wants.",
    "target": {
-    "min_km": 13.2
+    "min_km": 14.4
    },
-   "done": {
-    "date": "2026-09-19",
-    "day": "Sat",
-    "name": "Vancouver Running",
-    "km": 15.1,
-    "pace": 6.58,
-    "hr": 139
-   }
+   "done": null
   },
   {
    "id": "tempo",
@@ -75,36 +54,12 @@
  ],
  "unclaimed": [
   {
-   "date": "2026-09-14",
+   "date": "2026-09-21",
    "name": "Strength",
    "type": "strength_training",
    "km": null
-  },
-  {
-   "date": "2026-09-15",
-   "name": "Ice Hockey",
-   "type": "ice_hockey",
-   "km": null
-  },
-  {
-   "date": "2026-09-15",
-   "name": "Strength",
-   "type": "strength_training",
-   "km": null
-  },
-  {
-   "date": "2026-09-16",
-   "name": "Strength",
-   "type": "strength_training",
-   "km": null
-  },
-  {
-   "date": "2026-09-18",
-   "name": "North Vancouver District Hiking",
-   "type": "hiking",
-   "km": 7.1
   }
  ],
- "km_done": 30.3,
+ "km_done": 0,
  "km_floor": 20.0
 }
