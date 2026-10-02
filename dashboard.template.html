@@ -283,6 +283,7 @@ footer{border-top:1px solid var(--rule);padding-top:18px;font-family:var(--mono)
   <a href="#/nights" data-r="/nights">Sleep</a>
   <a href="#/days" data-r="/days">Days</a>
   <a href="#/health" data-r="/health">Health</a>
+  <a href="#/predict" data-r="/predict">Predictions</a>
 </nav>
 
 <div id="detail" class="hidden"></div>
@@ -1308,6 +1309,176 @@ function viewHealth() {
 }
 
 
+function viewPredictions() {
+  const el2 = document.getElementById("detail");
+  const P = D.predict;
+  if (!P) {
+    el2.innerHTML = '<div class="dhead"><h1>Predictions</h1></div>'
+      + '<div class="empty">Not enough running data to model yet.</div>';
+    return;
+  }
+  const H = P.hyrox, M = P.marathon;
+  const pace = s => Math.floor(s / 60) + ":" + String(Math.round(s % 60)).padStart(2, "0");
+  const ten = P.table.find(r => r.km === 10);
+
+  let h = '<a class="back" href="#/">&larr; Overview</a>'
+    + '<div class="dhead"><h1>Predictions</h1><div class="meta"><b>' + P.days
+    + '</b> days to Vancouver Hyrox &middot; anchored on a <b>' + P.anchor.km
+    + ' km</b> effort from <b>' + esc(P.anchor.d) + '</b> at HR ' + P.anchor.hr
+    + ' (' + esc(P.anchor.te || "hard") + '), grade-adjusted. '
+    + 'Fade exponent <b>' + num(P.b.mine, 2) + '</b>'
+    + (P.b.fitted ? " fitted from his own 5 km and 10 km" : " assumed")
+    + ".</div></div>";
+
+  h += '<div class="tiles">'
+    + tile("10 km", hms(ten.measured || ten.mine), "", "measured, not modelled")
+    + tile("VO₂max race day", num(P.vo2.lo, 1) + "–" + num(P.vo2.hi, 1), "",
+           "now " + num(P.vo2.now, 1) + " · 12-mo high " + num(P.vo2.high, 1))
+    + tile("Hyrox", hms(H.total.mid), "", hms(H.total.fast) + "–" + hms(H.total.slow))
+    + tile("Goal", hms(H.goal), "", "sub-1:30, the number to race")
+    + "</div>";
+
+  h += '<div class="verdict" style="margin:26px 0 10px">'
+    + '<div class="lede">Two of these come from races you actually ran. The rest degrade from there.</div>'
+    + "<p>You have two near-maximal efforts on record, and they are better evidence than any "
+    + "VO<sub>2</sub>max arithmetic: a <strong>5 km in " + hms(P.table[0].measured)
+    + "</strong> and a <strong>10 km in " + hms(ten.measured) + "</strong>. Fitting the fade "
+    + "exponent to that pair gives <strong>" + num(P.b.mine, 2) + "</strong>, not the textbook "
+    + "1.06 — you drop off harder than average with distance, which matters more the "
+    + "further out you forecast.</p>"
+    + "<p>The <strong>Hyrox station times are not yours</strong>. Your log has no station work "
+    + "in it, so those eight rows are published Open norms adjusted for your lifting numbers. "
+    + "They are <strong>39%</strong> of the predicted finish.</p></div>";
+
+  /* ---- distance table ---- */
+  h += '<section><div class="head"><h2>Race equivalents</h2>'
+    + '<span class="note">Riegel, two exponents</span></div>'
+    + '<p class="sub">Your own exponent against the textbook one. They agree at the anchor '
+    + 'distance by construction and diverge as you extrapolate away from it, which is the '
+    + 'honest picture of how much a long-distance forecast is worth.</p>'
+    + '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th class="nos">Distance</th><th>Yours (b=' + num(P.b.mine, 2)
+    + ")</th><th>Textbook (1.06)</th><th>Status</th></tr></thead><tbody>"
+    + P.table.map(r =>
+        '<tr><td class="s">' + esc(r.label) + "</td><td><b>"
+        + hms(r.measured || r.mine) + "</b></td><td>" + hms(r.book) + "</td><td>"
+        + (r.measured ? '<span class="pill ok">measured</span>'
+                      : '<span class="pill">modelled</span>') + "</td></tr>").join("")
+    + "</tbody></table></div>"
+    + '<p class="sub" style="margin-top:10px">Anchor: ' + P.anchor.km + " km on "
+    + esc(P.anchor.d) + " at " + pace(P.anchor.gap * 60) + " /km grade-adjusted, HR "
+    + P.anchor.hr + " against a threshold of " + P.lthr
+    + ". Re-anchor after any hard 10 km.</p></section>";
+
+  /* ---- vo2max ---- */
+  h += '<section><div class="head"><h2>VO₂max at race day</h2>'
+    + '<span class="note">bounded projection</span></div>'
+    + '<div class="finding warn"><div class="stripe"></div><div class="fb">'
+    + "<h3>Do not extrapolate the 90-day trend</h3><p>The recent rise is recovery from a dip "
+    + "to " + num(P.vo2.trough, 1) + " around " + esc(P.vo2.trough_d) + ", not new fitness. "
+    + "Your 12-month high is <strong>" + num(P.vo2.high, 1) + "</strong> and you are at it now. "
+    + "Projecting the trend in a straight line lands near 59, which would be a personal record "
+    + "by more than two points. A bounded approach to a realistic ceiling gives <strong>"
+    + num(P.vo2.lo, 1) + " to " + num(P.vo2.hi, 1) + "</strong>, and that range barely moves "
+    + "whichever ceiling you pick. About <strong>one point</strong> is available in nine weeks, "
+    + "so the race turns on station efficiency and pacing, not on a bigger engine.</p>"
+    + "</div></div></section>";
+
+  /* ---- hyrox ---- */
+  const segs = [["Running", H.run.mid, "var(--petrol)", "from your 10 km"],
+                ["Stations", H.st.mid, "var(--clay)", "published norms"],
+                ["Roxzone", H.rox.mid, "var(--ink-3)", "norms"]];
+  const segTot = segs.reduce((a, s) => a + s[1], 0);
+
+  h += '<section><div class="head"><h2>Hyrox</h2>'
+    + '<span class="note">Open &middot; ' + esc(P.race) + "</span></div>"
+    + '<p class="sub">Run legs come from your measured 10 km plus a compromised-running '
+    + 'penalty. Stations are norms nudged by your lifting: the four strength-limited ones get '
+    + 'an optimistic target, the four engine-limited ones a pessimistic one.</p>'
+    + '<div style="display:flex;height:30px;gap:2px;margin-bottom:8px">'
+    + segs.map(s => '<div title="' + s[0] + '" style="flex:' + (s[1] / segTot * 100).toFixed(2)
+        + ";background:" + s[2] + ';border-radius:3px;opacity:'
+        + (s[0] === "Running" ? "1" : ".62") + '"></div>').join("")
+    + "</div>"
+    + '<div class="legend" style="margin-bottom:18px">'
+    + segs.map(s => '<span><i style="background:' + s[2] + ";opacity:"
+        + (s[0] === "Running" ? "1" : ".62") + '"></i>' + s[0] + " " + hms(s[1])
+        + " <span style=\"color:var(--ink-3)\">" + s[3] + "</span></span>").join("")
+    + "</div>";
+
+  h += '<div class="tbl-wrap"><table class="dt"><thead><tr>'
+    + '<th class="nos">Segment</th><th class="nos" style="text-align:left">Spec</th>'
+    + "<th>Target</th><th>Range</th><th>Evidence</th></tr></thead><tbody>"
+    + '<tr><td class="s">8 &times; 1 km runs</td><td style="text-align:left">'
+    + pace(H.run.pace_race) + " /km</td><td><b>" + hms(H.run.mid) + "</b></td><td>"
+    + hms(H.run.fast) + "–" + hms(H.run.slow)
+    + '</td><td><span class="pill ok">yours</span></td></tr>'
+    + H.stations.map(s =>
+        '<tr><td class="s">' + esc(s.name) + '</td><td style="text-align:left">'
+        + esc(s.spec) + "</td><td><b>" + hms(s.target) + "</b></td><td>" + hms(s.fast)
+        + "–" + hms(s.slow) + '</td><td><span class="pill">norm · '
+        + esc(s.lim) + "</span></td></tr>").join("")
+    + '<tr><td class="s">Roxzone</td><td style="text-align:left">8 transitions</td><td><b>'
+    + hms(H.rox.mid) + "</b></td><td>" + hms(H.rox.fast) + "–" + hms(H.rox.slow)
+    + '</td><td><span class="pill">norm</span></td></tr>'
+    + '<tr><td class="s"><b>Predicted</b></td><td></td><td><b>' + hms(H.total.mid)
+    + "</b></td><td>" + hms(H.total.fast) + "–" + hms(H.total.slow)
+    + "</td><td></td></tr></tbody></table></div>";
+
+  /* ---- the missing measurement ---- */
+  h += '<div class="finding crit" style="margin-top:14px"><div class="stripe"></div>'
+    + '<div class="fb"><h3><span class="num">' + H.penalty.assumed
+    + ' s/km</span> &nbsp;assumed. Measured: never.</h3>'
+    + "<p>How much slower you run a 1 km leg straight off a station is the single biggest "
+    + "unknown here: the 55 to 100 s/km spread is worth <strong>six minutes</strong> of finish "
+    + "time on its own, more than every point of VO<sub>2</sub>max you can gain before race day. "
+    + "It is also free to measure. One half-Hyrox, four stations and four 1 km legs in the "
+    + "Tuesday slot, replaces the assumption with your number and visibly narrows the range "
+    + "above. Until then this page is guessing at " + (
+      Math.round((H.total.slow - H.total.fast) / 60)) + " minutes of spread.</p></div></div>";
+
+  h += "</section>";
+
+  /* ---- marathon ---- */
+  h += '<section><div class="head"><h2>Marathon</h2>'
+    + '<span class="note">readiness, not a time</span></div>'
+    + '<div class="finding crit"><div class="stripe"></div><div class="fb">'
+    + "<h3>No marathon time is shown here, deliberately</h3>"
+    + "<p>Riegel from your 10 km and Garmin's own predictor both land near 3:41. Both ignore "
+    + "the thing that decides a marathon, which is whether you have run far enough to finish "
+    + "one. You pass <strong>" + M.passed + " of " + M.gates.length
+    + "</strong> conventional readiness gates. Publishing a time would license an entry that "
+    + "ends in a walk or an injury.</p></div></div>"
+    + '<div class="tbl-wrap" style="margin-top:12px"><table class="dt"><thead><tr>'
+    + '<th class="nos">Gate</th><th>Needs</th><th>You</th><th></th></tr></thead><tbody>'
+    + M.gates.map(g =>
+        '<tr><td class="s">' + esc(g.name) + "</td><td>"
+        + (g.invert ? "under " : "") + num(g.need, g.unit === "" ? 1 : 0) + " " + esc(g.unit)
+        + "</td><td><b>" + num(g.have, 1) + " " + esc(g.unit) + "</b></td><td>"
+        + (g.ok ? '<span class="pill ok">pass</span>' : '<span class="pill no">short</span>')
+        + "</td></tr>").join("")
+    + "</tbody></table></div>"
+    + '<p class="sub" style="margin-top:12px"><b>Earliest defensible marathon date: '
+    + esc(M.earliest) + ".</b> That assumes two weeks off after Hyrox, a build starting in "
+    + "January, and a 32 km long run plus a three-week taper before race day. Anything in "
+    + "March does not clear it. This is a gate on targeting a time, not a claim you could not "
+    + "finish one.</p></section>";
+
+  /* ---- load ---- */
+  h += '<section><div class="head"><h2>What is competing for the budget</h2>'
+    + '<span class="note">last 8 weeks</span></div>'
+    + '<div class="finding warn"><div class="stripe"></div><div class="fb">'
+    + "<h3><span class=\"num\">" + P.load.since_threshold + " days</span> &nbsp;since a run at "
+    + "or above threshold HR</h3><p>Hyrox is raced near threshold, and you have not trained "
+    + "there since " + P.load.since_threshold + " days ago. Meanwhile hockey is <strong>"
+    + P.load.hockey_pct + "%</strong> of your training load over the last eight weeks, and "
+    + "every session of it registers as anaerobic. It is spending the recovery budget that "
+    + "threshold work needs. Treat it as a hard session in the week's plan, not as a day "
+    + "off.</p></div></div></section>";
+
+  el2.innerHTML = h;
+}
+
 /* ---- router ---- */
 function route() {
   const hash = (location.hash || "#/").replace(/^#/, "");
@@ -1326,6 +1497,7 @@ function route() {
     else if (top === "night") viewNight(parts[1]);
     else if (top === "days") viewDays();
     else if (top === "health") viewHealth();
+    else if (top === "predict") viewPredictions();
     else if (top === "day") viewDay(parts[1]);
     else { ov.classList.remove("hidden"); dt.classList.add("hidden"); }
   } catch (e) {
@@ -1333,6 +1505,10 @@ function route() {
       + '<div class="empty">Could not render that view.</div>';
   }
   window.scrollTo(0, 0);
+}
+if (!D.predict) {
+  const a = document.querySelector('#nav a[data-r="/predict"]');
+  if (a) a.remove();
 }
 if (!D.health) {
   const a = document.querySelector('#nav a[data-r="/health"]');

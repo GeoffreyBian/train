@@ -9,6 +9,7 @@ the published dashboard is never hand-edited — sync, rebuild, republish.
 
 import argparse
 import json
+import math
 import re
 import statistics as st
 import sys
@@ -360,6 +361,217 @@ def build_health(D, out):
                       if s.get(k) is not None and prev.get(k) is not None}
     return h
 
+
+
+# ---------------------------------------------------------------------------
+# Predictions
+#
+# Anchored on the athlete's own near-maximal efforts, not on VO2max arithmetic.
+# The detail files carry grade-adjusted pace, RPE and Garmin's training-effect
+# label per run, which is enough to pick real efforts out of ordinary training.
+# Confidence is tiered and the page says which tier each number sits in.
+# ---------------------------------------------------------------------------
+
+# Open division, men. (fast, target, slow) seconds. Targets are asymmetric on
+# purpose: he is far above the Open strength requirement and has never trained
+# a station, so the strength-limited four get an optimistic target and the
+# engine-limited four a pessimistic one.
+HYROX_STATIONS = [
+    ("SkiErg", "1000 m", "engine", 240, 261, 285),
+    ("Sled push", "50 m @ 102 kg", "strength", 150, 164, 220),
+    ("Sled pull", "50 m @ 78 kg", "strength", 180, 194, 255),
+    ("Burpee broad jumps", "80 m", "engine", 300, 375, 450),
+    ("Row", "1000 m", "engine", 225, 246, 270),
+    ("Farmers carry", "200 m @ 2x24 kg", "strength", 100, 112, 145),
+    ("Sandbag lunges", "100 m @ 20 kg", "strength", 230, 258, 330),
+    ("Wall balls", "100 reps @ 6 kg", "engine", 330, 426, 510),
+]
+ROXZONE = (300, 360, 450)
+COMPROMISED = (55, 75, 100)        # sec/km added to fresh pace, unmeasured
+HYROX_GOAL = 5400                  # sub-1:30, the number to race against
+
+MARATHON_GATES = [
+    ("Peak weekly volume", 45.0, "km", "peak_wk"),
+    ("Mean weekly, last 8 wk", 45.0, "km", "mean_wk"),
+    ("Longest run, last 90 d", 30.0, "km", "long90"),
+    ("Runs per week", 4.0, "", "per_wk"),
+]
+
+
+def _details_index(D):
+    """gapPace / rpe / teLabel per activity id, from the detail files."""
+    idx = {}
+    for f in (ROOT / "data" / "details").glob("*.json"):
+        try:
+            d = json.loads(f.read_text())
+        except Exception:
+            continue
+        s = d.get("summary") or {}
+        idx[str(d.get("activity_id"))] = {
+            "gap": s.get("gapPace"), "rpe": s.get("rpe"), "te": s.get("teLabel")}
+    return idx
+
+
+def _anchors(D, lthr):
+    """Near-maximal efforts: at or above threshold HR, or flagged as such.
+
+    An ordinary aerobic run is not an anchor no matter how fast it looks next
+    to the others, which is what the previous version got wrong.
+    """
+    idx = _details_index(D)
+    out = []
+    for r in D.runs():
+        km, hr = r["_km"], r["_hr"]
+        if not km or not hr or km < 3:
+            continue
+        ex = idx.get(str(r.get("activity_id")), {})
+        rpe, te = ex.get("rpe"), ex.get("te")
+        hard = (hr >= lthr - 1) or (rpe and rpe >= 80) or te == "VO2MAX"
+        if not hard:
+            continue
+        gap = ex.get("gap") or r["_pace"]
+        out.append({"d": r["_d"], "km": round(km, 2), "gap": gap, "hr": hr,
+                    "rpe": rpe, "te": te, "t": gap * km * 60.0})
+    return out
+
+
+def build_predictions(D, out):
+    runs = D.runs()
+    if not runs:
+        return None
+    lthr = (out.get("hdr") or {}).get("lthr") or 173
+
+    hard = _anchors(D, lthr)
+    best5 = min((a for a in hard if 4.5 <= a["km"] <= 6.5),
+                key=lambda a: a["gap"], default=None)
+    best10 = min((a for a in hard if 9.0 <= a["km"] <= 12.5),
+                 key=lambda a: a["gap"], default=None)
+
+    # His own fade exponent, where both distances exist. The textbook 1.06
+    # understates how hard he drops off.
+    b_fit = None
+    if best5 and best10:
+        t5 = best5["gap"] * 5.0 * 60.0
+        t10 = best10["gap"] * 10.0 * 60.0
+        b_fit = math.log(t10 / t5) / math.log(2.0)
+    b = b_fit or 1.10
+
+    anchor = best10 or best5
+    if not anchor:
+        return None
+    a_km = 10.0 if anchor is best10 else 5.0
+    a_t = anchor["gap"] * a_km * 60.0
+
+    def riegel(dist, expo):
+        return a_t * (dist / a_km) ** expo
+
+    dists = [("5 km", 5.0), ("10 km", 10.0), ("Half marathon", 21.0975)]
+    table = []
+    for label, dist in dists:
+        measured = None
+        if dist == 5.0 and best5:
+            measured = best5["gap"] * 5.0 * 60.0
+        if dist == 10.0 and best10:
+            measured = best10["gap"] * 10.0 * 60.0
+        table.append({"label": label, "km": dist,
+                      "mine": riegel(dist, b), "book": riegel(dist, 1.06),
+                      "measured": measured})
+
+    # ---- VO2max at race day -------------------------------------------------
+    vo2 = [(r["_d"], A.f(r.get("vo2max"))) for r in runs if A.f(r.get("vo2max"))]
+    v_now = vo2[-1][1]
+    v_high = max(v for _, v in vo2)
+    recent = [(dt, v) for dt, v in vo2 if dt >= D.today - timedelta(days=150)]
+    # A 7-point rolling median first: the raw series has single-day drops of
+    # three points that recover the next day, and anchoring the projection on
+    # one of those would inflate every number downstream.
+    smoothed = []
+    for i, (dt, _) in enumerate(recent):
+        win = [v for _, v in recent[max(0, i - 3):i + 4]]
+        smoothed.append((dt, st.median(win)))
+    trough = min(smoothed, key=lambda x: x[1]) if smoothed else vo2[0]
+    elapsed = max((D.today - trough[0]).days, 1)
+    to_race = max((A.HYROX - D.today).days, 0)
+
+    # Bounded approach to a ceiling, not a straight line. The answer is barely
+    # sensitive to the ceiling, which is what makes it worth printing.
+    proj = []
+    for C in (57.5, 58.0, 58.5, 59.0):
+        if C <= trough[1] or C <= v_now:
+            continue
+        ratio = (C - v_now) / (C - trough[1])
+        if ratio <= 0 or ratio >= 1:
+            continue
+        tau = -elapsed / math.log(ratio)
+        proj.append(C - (C - v_now) * math.exp(-to_race / tau))
+    vo2_lo = min(proj) if proj else v_now
+    vo2_hi = max(proj) if proj else v_now
+
+    # ---- Hyrox --------------------------------------------------------------
+    pace = anchor["gap"] * 60.0 if anchor is best10 else riegel(10.0, b) / 10.0
+    run = [(pace + p) * 8 for p in COMPROMISED]
+    st_f = sum(s[3] for s in HYROX_STATIONS)
+    st_t = sum(s[4] for s in HYROX_STATIONS)
+    st_s = sum(s[5] for s in HYROX_STATIONS)
+    total = [run[0] + st_f + ROXZONE[0], run[1] + st_t + ROXZONE[1],
+             run[2] + st_s + ROXZONE[2]]
+
+    # ---- marathon readiness -------------------------------------------------
+    wk = defaultdict(float)
+    wkn = Counter()
+    for r in runs:
+        k = A.week(r["_d"])
+        wk[k] += r["_km"]
+        wkn[k] += 1
+    last8 = [wk[k] for k in sorted(wk)[-8:]]
+    mean_wk = A.mean(last8) if last8 else 0
+    cv = (st.pstdev(last8) / mean_wk * 100) if last8 and mean_wk else 0
+    long90 = max((r["_km"] for r in runs
+                  if r["_d"] >= D.today - timedelta(days=90)), default=0)
+    per_wk = A.mean([wkn[k] for k in sorted(wkn)[-8:]]) if wkn else 0
+    vals = {"peak_wk": max(last8) if last8 else 0, "mean_wk": mean_wk,
+            "long90": long90, "per_wk": per_wk}
+    gates = [{"name": n, "need": need, "unit": u, "have": vals[k],
+              "ok": vals[k] >= need} for n, need, u, k in MARATHON_GATES]
+    gates.append({"name": "Week-to-week variation", "need": 25.0, "unit": "%",
+                  "have": cv, "ok": cv < 25.0, "invert": True})
+
+    # ---- hockey and the missing threshold work ------------------------------
+    hk_load = sum(A.f(r.get("training_load")) or 0 for r in D.acts
+                  if r["_type"] == "ice_hockey"
+                  and r["_d"] >= D.today - timedelta(days=56))
+    all_load = sum(A.f(r.get("training_load")) or 0 for r in D.acts
+                   if r["_d"] >= D.today - timedelta(days=56)) or 1
+    thresh = [r["_d"] for r in runs if r["_hr"] and r["_hr"] >= lthr]
+    since_thresh = (D.today - max(thresh)).days if thresh else None
+
+    return {
+        "race": A.HYROX.isoformat(), "days": to_race, "lthr": lthr,
+        "b": {"mine": b, "fitted": bool(b_fit), "book": 1.06},
+        "anchor": {"d": anchor["d"].isoformat(), "km": anchor["km"],
+                   "gap": anchor["gap"], "hr": anchor["hr"],
+                   "te": anchor["te"], "rpe": anchor["rpe"]},
+        "table": table,
+        "vo2": {"now": round(v_now, 1), "high": round(v_high, 1),
+                "trough": round(trough[1], 1), "trough_d": trough[0].isoformat(),
+                "lo": round(vo2_lo, 1), "hi": round(vo2_hi, 1)},
+        "hyrox": {
+            "run": {"fast": run[0], "mid": run[1], "slow": run[2],
+                    "pace_fresh": pace, "pace_race": pace + COMPROMISED[1]},
+            "stations": [{"name": n, "spec": sp, "lim": lim,
+                          "fast": f, "target": t, "slow": s}
+                         for n, sp, lim, f, t, s in HYROX_STATIONS],
+            "st": {"fast": st_f, "mid": st_t, "slow": st_s},
+            "rox": {"fast": ROXZONE[0], "mid": ROXZONE[1], "slow": ROXZONE[2]},
+            "total": {"fast": total[0], "mid": total[1], "slow": total[2]},
+            "goal": HYROX_GOAL,
+            "penalty": {"assumed": COMPROMISED[1], "measured": None, "n": 0},
+        },
+        "marathon": {"gates": gates, "passed": sum(1 for g in gates if g["ok"]),
+                     "earliest": "2027-05-03"},
+        "load": {"hockey_pct": round(hk_load / all_load * 100),
+                 "since_threshold": since_thresh},
+    }
 
 def build_data():
     D = A.Data()
@@ -911,6 +1123,7 @@ def build_data():
 
     out["week"] = WP.build(D)
     out["health"] = build_health(D, out)
+    out["predict"] = build_predictions(D, out)
     return out, D
 
 
