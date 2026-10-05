@@ -1,0 +1,10 @@
+{
+ "activity_id": "9000000000003",
+ "date": "2026-10-03",
+ "name": "Cardio run portion (manual, user-reported)",
+ "type": "treadmill_running",
+ "laps": [],
+ "zones": [],
+ "manual": true,
+ "note": "User-reported distance from an indoor cardio session the watch recorded without distance. Stub exists so sync_details never tries to fetch a Garmin activity that does not exist."
+}
