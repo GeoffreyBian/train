@@ -14,7 +14,14 @@
     "max_pace": 5.4,
     "min_km": 5.0
    },
-   "done": null
+   "done": {
+    "date": "2026-10-08",
+    "day": "Thu",
+    "name": "Vancouver Running",
+    "km": 7.5,
+    "pace": 8.18,
+    "hr": 135
+   }
   },
   {
    "id": "easy",
@@ -79,6 +86,6 @@
    "km": null
   }
  ],
- "km_done": 9.2,
+ "km_done": 16.7,
  "km_floor": 20.0
 }
