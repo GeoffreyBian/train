@@ -1,8 +1,8 @@
 {
- "week_start": "2026-10-05",
- "week_end": "2026-10-11",
- "week_label": "2026-W41",
- "data_through": "2026-10-11",
+ "week_start": "2026-10-12",
+ "week_end": "2026-10-18",
+ "week_label": "2026-W42",
+ "data_through": "2026-10-13",
  "sessions": [
   {
    "id": "reps",
@@ -15,12 +15,12 @@
     "min_km": 5.0
    },
    "done": {
-    "date": "2026-10-08",
-    "day": "Thu",
+    "date": "2026-10-12",
+    "day": "Mon",
     "name": "Vancouver Running",
-    "km": 7.5,
-    "pace": 8.18,
-    "hr": 135
+    "km": 10.4,
+    "pace": 5.0,
+    "hr": 154
    }
   },
   {
@@ -32,32 +32,18 @@
    "target": {
     "min_km": 4.2
    },
-   "done": {
-    "date": "2026-10-06",
-    "day": "Tue",
-    "name": "Vancouver Running",
-    "km": 9.2,
-    "pace": 6.18,
-    "hr": 132
-   }
+   "done": null
   },
   {
    "id": "long",
    "day": "Sat",
    "kind": "run_long",
-   "title": "Long run \u2014 17 km easy",
-   "detail": "Conversational, HR under 155. Up 2 km from your 15.1 km ceiling \u2014 the only sustainable way back to the 22 km Phase 2b wants.",
+   "title": "Long run \u2014 20 km easy",
+   "detail": "Conversational, HR under 155. Up 2 km from your 18.2 km ceiling \u2014 the only sustainable way back to the 22 km Phase 2b wants.",
    "target": {
-    "min_km": 14.4
+    "min_km": 17.0
    },
-   "done": {
-    "date": "2026-10-10",
-    "day": "Sat",
-    "name": "Vancouver Running",
-    "km": 18.2,
-    "pace": 5.88,
-    "hr": 133
-   }
+   "done": null
   },
   {
    "id": "tempo",
@@ -75,36 +61,18 @@
  ],
  "unclaimed": [
   {
-   "date": "2026-10-05",
+   "date": "2026-10-12",
    "name": "Strength",
    "type": "strength_training",
    "km": null
   },
   {
-   "date": "2026-10-06",
-   "name": "Strength",
-   "type": "strength_training",
-   "km": null
-  },
-  {
-   "date": "2026-10-07",
-   "name": "Strength",
-   "type": "strength_training",
-   "km": null
-  },
-  {
-   "date": "2026-10-09",
-   "name": "Bouldering",
-   "type": "bouldering",
-   "km": null
-  },
-  {
-   "date": "2026-10-09",
+   "date": "2026-10-13",
    "name": "Strength",
    "type": "strength_training",
    "km": null
   }
  ],
- "km_done": 34.9,
+ "km_done": 10.4,
  "km_floor": 20.0
 }
