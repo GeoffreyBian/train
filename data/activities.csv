@@ -1,5 +1,9 @@
 date,activity_id,name,type,distance_km,duration_min,pace_min_km,avg_hr,max_hr,calories,elev_gain_m,avg_cadence,aerobic_te,anaerobic_te,training_load,vo2max
 2026-10-03,9000000000003,"Cardio run portion (manual, user-reported)",treadmill_running,3,19.5,6.5,,,,,,,,,
+2026-10-20,24793536304,Vancouver Running,running,9.89,61.8,6.25,133.0,149.0,731.0,81.0,157.0,2.8,0.0,67.0,57.0
+2026-10-20,24792604676,Strength,strength_training,,59.3,,106.0,142.0,369.0,,,1.0,1.4,32.0,
+2026-10-19,24783989366,Strength,strength_training,,59.8,,111.0,176.0,400.0,,,1.8,2.9,98.0,
+2026-10-18,24773651896,Strength,strength_training,,62.1,,107.0,150.0,397.0,,,1.2,1.0,29.0,
 2026-10-18,24770917215,Richmond Running,running,8.67,55.5,6.39,127.0,142.0,623.0,9.0,154.0,2.5,0.0,52.0,57.0
 2026-10-17,24762920897,Ice Hockey,ice_hockey,,66.8,,110.0,166.0,437.0,,,1.6,2.4,70.0,
 2026-10-17,24759427890,Vancouver Running,running,5.01,37.3,7.45,134.0,151.0,404.0,93.0,152.0,2.2,0.0,38.0,57.0
