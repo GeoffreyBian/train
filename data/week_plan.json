@@ -2,7 +2,7 @@
  "week_start": "2026-10-19",
  "week_end": "2026-10-25",
  "week_label": "2026-W43",
- "data_through": "2026-10-20",
+ "data_through": "2026-10-24",
  "sessions": [
   {
    "id": "reps",
@@ -43,7 +43,14 @@
    "target": {
     "min_km": 17.0
    },
-   "done": null
+   "done": {
+    "date": "2026-10-23",
+    "day": "Fri",
+    "name": "Vancouver Running",
+    "km": 21.2,
+    "pace": 5.6,
+    "hr": 139
+   }
   },
   {
    "id": "tempo",
@@ -56,7 +63,14 @@
     "min_km": 4.0
    },
    "optional": true,
-   "done": null
+   "done": {
+    "date": "2026-10-22",
+    "day": "Thu",
+    "name": "Vancouver Running",
+    "km": 10.6,
+    "pace": 5.57,
+    "hr": 141
+   }
   }
  ],
  "unclaimed": [
@@ -71,8 +85,20 @@
    "name": "Strength",
    "type": "strength_training",
    "km": null
+  },
+  {
+   "date": "2026-10-21",
+   "name": "Strength",
+   "type": "strength_training",
+   "km": null
+  },
+  {
+   "date": "2026-10-23",
+   "name": "Strength",
+   "type": "strength_training",
+   "km": null
   }
  ],
- "km_done": 9.9,
+ "km_done": 41.7,
  "km_floor": 20.0
 }
