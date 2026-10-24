@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
 """Pull Garmin Connect data into local CSVs under data/.
 
-One-time login:   ./.venv/bin/python garmin_sync.py --login
 Incremental sync: ./.venv/bin/python garmin_sync.py
 Backfill:         ./.venv/bin/python garmin_sync.py --days 365
+Legacy login:     ./.venv/bin/python garmin_sync.py --login   (~6 months)
+
+Two sources, merged per field:
+  * Personal API key (GARMIN_PERSONAL_API_KEY in .env, personal_api.py):
+    activities, sleep, daily wellness, HRV, weight. Official, no password.
+  * Legacy SSO session (~/.garminconnect): everything the key cannot reach --
+    readiness, training status, VO2max/heat, endurance score, per-run VO2max,
+    and the decimal respiration/floors the key rounds off.
+Either one alone still syncs what it can.
 """
 
 import argparse
@@ -18,6 +26,8 @@ from pathlib import Path
 
 from garminconnect import Garmin
 from garminconnect.exceptions import GarminConnectTooManyRequestsError
+
+from personal_api import KeyMissing, PersonalAPI, PersonalAPIError
 
 DATA = Path(__file__).resolve().parent / "data"
 TOKENS = Path.home() / ".garminconnect"
@@ -56,8 +66,15 @@ def pace_min_km(distance_m, duration_s):
     return round((duration_s / 60) / (distance_m / 1000), 2)
 
 
-def merge_csv(path, rows, key, columns):
-    """Upsert rows into a CSV keyed on `key`, keeping it sorted by key desc."""
+def merge_csv(path, rows, key, columns, fill_only=()):
+    """Upsert rows into a CSV keyed on `key`, keeping it sorted by key desc.
+
+    Columns in `fill_only` hold a coarser value: the Personal API drops the
+    decimal on respiration and floors that the legacy pull keeps. Such a value
+    fills an empty cell, and replaces a finer one only when it actually
+    disagrees (by more than 1, e.g. today's floors synced again later) -- never
+    when it is just the same number with the decimal cut off.
+    """
     if not rows and not path.exists():
         return 0
     existing = {}
@@ -77,6 +94,15 @@ def merge_csv(path, rows, key, columns):
         for c in columns:
             v = r.get(c)
             v = "" if v is None else str(v)
+            if c in fill_only and v != "" and prev.get(c, "") != "":
+                try:
+                    # The key truncates (15.96 -> 15) where the legacy value
+                    # rounds (16.0), so a gap of exactly 1 is still the same
+                    # reading.
+                    if abs(float(v) - float(prev[c])) <= 1:
+                        v = ""
+                except ValueError:
+                    v = ""
             merged[c] = v if v != "" else prev.get(c, "")
         existing[k] = merged
     with open(path, "w", newline="") as f:
@@ -126,11 +152,19 @@ def _prompt_mfa():
     return input("MFA code (check email/SMS): ").strip()
 
 
-def login(interactive=False):
-    """Return an authenticated Garmin client.
+class LegacyUnavailable(RuntimeError):
+    pass
+
+
+def login(interactive=False, prompt=True):
+    """Return an authenticated Garmin client (the unofficial SSO session).
 
     Tokens live in ~/.garminconnect and are shared with the garmin MCP server.
     The library loads and saves them itself when handed the tokenstore path.
+
+    With prompt=False a missing or expired session raises LegacyUnavailable
+    instead of asking for a password, so an unattended sync can carry on with
+    the Personal API alone.
     """
     tokenstore = str(TOKENS)
 
@@ -140,8 +174,12 @@ def login(interactive=False):
             api.login(tokenstore)
             return api
         except Exception as e:
+            if not prompt:
+                raise LegacyUnavailable(f"cached tokens unusable ({type(e).__name__})") from None
             print(f"  cached tokens unusable ({type(e).__name__}); logging in again",
                   file=sys.stderr)
+    elif not interactive and not prompt:
+        raise LegacyUnavailable(f"no saved session in {TOKENS}")
 
     email, password = _credentials()
     api = Garmin(email=email, password=password, prompt_mfa=_prompt_mfa)
@@ -406,6 +444,104 @@ def pull_hrv_range(api, start, end):
     return out
 
 
+# ---------------------------------------------------------------- Personal API pulls
+#
+# Same CSV columns as the legacy pulls above, read through the official key
+# (personal_api.py) instead of the scraped SSO session. Fields the key does not
+# carry are left None, and merge_csv never blanks a value with None, so a
+# legacy pull on the same run can still fill them.
+
+def personal_activities(papi, start, end):
+    # Same search endpoint get_activities_by_date wraps, so pull_activities'
+    # mapping applies unchanged. The key omits vO2MaxValue.
+    class _Shim:
+        def get_activities_by_date(self, s, e):
+            return papi.activities(date.fromisoformat(s), date.fromisoformat(e))
+    return pull_activities(_Shim(), start, end)
+
+
+def personal_sleep(papi, start, end, hrv=None, rhr=None):
+    """Sleep rows from dailySleepSummariesByDate.
+
+    The key's sleep record has no HRV, SpO2, skin temperature or overnight body
+    battery. HRV comes from the HRV endpoint (pass its map in); the rest stay
+    blank rather than guessed. Resting HR comes from the daily summary (pass
+    {date: bpm}); on all 115 overlapping nights it equals the legacy value.
+    """
+    hrv, rhr = hrv or {}, rhr or {}
+    rows = []
+    for s in papi.sleep(start, end):
+        if not s.get("sleepTimeSeconds"):
+            continue
+        ds = s.get("calendarDate")
+        overall = g(s, "sleepScores", "overall") or {}
+        need = g(s, "sleepNeed", "actual")
+        last, status, weekly = hrv.get(ds, (None, None, None))
+        rows.append({
+            "date": ds,
+            "score": clean(overall.get("value")),
+            "quality": overall.get("qualifierKey"),
+            "total_h": secs_to_h(s.get("sleepTimeSeconds")),
+            "deep_h": secs_to_h(s.get("deepSleepSeconds")),
+            "light_h": secs_to_h(s.get("lightSleepSeconds")),
+            "rem_h": secs_to_h(s.get("remSleepSeconds")),
+            "awake_h": secs_to_h(s.get("awakeSleepSeconds")),
+            "resting_hr": rhr.get(ds),
+            "avg_hr": rnd(s.get("avgHeartRate"), 0),
+            # float() so the CSV reads 86.0 like the legacy pull, not 86
+            "avg_hrv": rnd(float(last), 0) if last is not None else None,
+            "hrv_7d_avg": rnd(float(weekly), 0) if weekly is not None else None,
+            "hrv_status": status,
+            "avg_spo2": None,
+            "avg_respiration": rnd(s.get("averageRespirationValue"), 1),
+            "body_battery_change": None,
+            "sleep_need_h": secs_to_h(need * 60) if need else None,
+            "skin_temp_c": None,
+        })
+    return rows
+
+
+def personal_daily(papi, start, end):
+    """Daily rows from v2/dailysummaries: up to a year per request, where the
+    legacy path makes one get_stats call per day."""
+    rows = []
+    for d in papi.dailies(start, end):
+        if not d.get("includesWellnessData"):
+            continue
+        row = {
+            "date": d.get("calendarDate"),
+            "steps": clean(g(d, "movement", "steps", "value")),
+            "resting_hr": clean(g(d, "heartRate", "restingValue")),
+            "stress_avg": clean(g(d, "stress", "avgLevel")),
+            "body_battery_high": clean(g(d, "bodyBattery", "maxValue")),
+            "body_battery_low": clean(g(d, "bodyBattery", "minValue")),
+            "intensity_min_moderate": clean(g(d, "intensityMinutes", "moderate")),
+            "intensity_min_vigorous": clean(g(d, "intensityMinutes", "vigorous")),
+            "active_calories": None,
+            "floors_climbed": None,
+        }
+        # float() so the CSV reads 0.0 / 61.0 like the legacy pull.
+        cal = clean(g(d, "calories", "burnedActive"))
+        row["active_calories"] = rnd(float(cal), 0) if cal is not None else None
+        fl = clean(g(d, "movement", "floorsAscended", "value"))
+        row["floors_climbed"] = rnd(float(fl), 1) if fl is not None else None
+        if any(row[k] is not None for k in row if k != "date"):
+            rows.append(row)
+    return rows
+
+
+def personal_hrv(papi, start, end):
+    return {r["calendarDate"]: (r.get("lastNightAvg"), r.get("status"), r.get("weeklyAvg"))
+            for r in papi.hrv(start, end) if r.get("calendarDate")}
+
+
+def personal_weight(papi, start, end):
+    class _Shim:
+        def get_weigh_ins(self, s, e):
+            return papi.weight(s, e)
+    return pull_weight_range(_Shim(), start, end)
+
+
 # ---------------------------------------------------------------- main
 
 def main():
@@ -414,18 +550,53 @@ def main():
     p.add_argument("--days", type=int, help="sync the last N days")
     p.add_argument("--full", action="store_true", help=f"backfill {DEFAULT_BACKFILL}+ days")
     p.add_argument("--verbose", action="store_true", help="show login strategy details")
+    p.add_argument("--personal-only", action="store_true",
+                   help="skip the legacy login; Personal API data only")
+    p.add_argument("--legacy-only", action="store_true",
+                   help="ignore the Personal API key (the pre-Oct-2026 behaviour)")
     args = p.parse_args()
 
     logging.getLogger("garminconnect").setLevel(
         logging.DEBUG if args.verbose else logging.ERROR
     )
     DATA.mkdir(parents=True, exist_ok=True)
-    print("Connecting to Garmin Connect...")
-    api = login(interactive=args.login)
-    print(f"  logged in as {api.display_name or api.username}")
+
     if args.login:
+        print("Connecting to Garmin Connect (legacy login)...")
+        api = login(interactive=True)
+        print(f"  logged in as {api.display_name or api.username}")
         print("Login OK. Run without --login to sync.")
         return
+
+    # Two sources. The Personal API key (official, no password, up to a year
+    # per key) carries the core data. The legacy SSO session is still the only
+    # way to readiness, training status, VO2max/heat, endurance score and a
+    # few finer-grained fields, so it runs on top when its tokens are good --
+    # and when they are not, the core data still lands instead of nothing.
+    papi = api = None
+    if not args.legacy_only:
+        try:
+            papi = PersonalAPI()
+            papi._bearer()
+            print("Personal API: key OK")
+        except KeyMissing as e:
+            print(f"Personal API: not configured ({e})", file=sys.stderr)
+        except PersonalAPIError as e:
+            print(f"Personal API: {e}", file=sys.stderr)
+            papi = None
+    if not args.personal_only:
+        try:
+            # Prompt for a password only when there is no key to fall back on.
+            api = login(prompt=papi is None)
+            print(f"Legacy session: logged in as {api.display_name or api.username}")
+        except LegacyUnavailable as e:
+            print(f"Legacy session: unavailable ({e}). Readiness, training status, "
+                  "VO2max and endurance score will not update this run.\n"
+                  "  Renew it with: ./.venv/bin/python garmin_sync.py --login",
+                  file=sys.stderr)
+    if papi is None and api is None:
+        print("No Garmin source available.", file=sys.stderr)
+        sys.exit(1)
 
     today = date.today()
     if args.days:
@@ -434,63 +605,132 @@ def main():
         start = today - timedelta(days=DEFAULT_BACKFILL)
     else:
         seen = last_date(DATA / "daily.csv")
+        if api:
+            # Days synced on the key alone have no readiness. Reach back to the
+            # last readiness row so a renewed legacy session fills that gap.
+            ready = last_date(DATA / "readiness.csv")
+            if seen and ready:
+                seen = min(seen, max(ready, (today - timedelta(days=60)).isoformat()))
         start = (date.fromisoformat(seen) - timedelta(days=2)) if seen else today - timedelta(days=DEFAULT_BACKFILL)
     days = (today - start).days + 1
     print(f"Syncing {start} -> {today} ({days} days)\n")
 
+    LOSSY = ("avg_respiration", "floors_climbed")
+
+    def step(label, fn):
+        """Run one pull; a failure in one source never sinks the whole sync."""
+        try:
+            return fn()
+        except Exception as e:
+            print(f"\n  {label} failed: {type(e).__name__}: {e}", file=sys.stderr)
+            return None
+
     print("Activities...", end=" ", flush=True)
-    acts = pull_activities(api, start, today)
-    n = merge_csv(DATA / "activities.csv", acts, "activity_id", ACTIVITY_COLS)
-    print(f"{len(acts)} found, {n} new")
+    acts, src = [], []
+    if papi:
+        r = step("Personal API activities", lambda: personal_activities(papi, start, today))
+        if r is not None:
+            acts += r; src.append("key")
+            merge_csv(DATA / "activities.csv", r, "activity_id", ACTIVITY_COLS)
+    if api:
+        # One request; the only source of per-run VO2max.
+        r = step("legacy activities", lambda: pull_activities(api, start, today))
+        if r is not None:
+            acts += r; src.append("legacy")
+            merge_csv(DATA / "activities.csv", r, "activity_id", ACTIVITY_COLS)
+    ids = {str(a["activity_id"]) for a in acts}
+    print(f"{len(ids)} found [{'+'.join(src) or 'none'}]")
+
+    hrv = {}
+    if papi:
+        hrv = step("Personal API HRV", lambda: personal_hrv(papi, start, today)) or {}
+    if not hrv and api:
+        hrv = pull_hrv_range(api, start, today)
+
+    key_daily = None
+    if papi:
+        key_daily = step("Personal API dailies", lambda: personal_daily(papi, start, today))
+    rhr = {x["date"]: x["resting_hr"] for x in key_daily or [] if x.get("resting_hr")}
 
     print("Sleep...", end=" ", flush=True)
-    sleep_rows = pull_sleep_range(api, start, today)
-    n = merge_csv(DATA / "sleep.csv", sleep_rows, "date", SLEEP_COLS)
-    pct = round(100 * len(sleep_rows) / days) if days else 0
-    print(f"{len(sleep_rows)}/{days} nights recorded ({pct}%), {n} new")
+    nights, src = set(), []
+    if papi:
+        r = step("Personal API sleep", lambda: personal_sleep(papi, start, today, hrv, rhr))
+        if r is not None:
+            nights |= {x["date"] for x in r}; src.append("key")
+            merge_csv(DATA / "sleep.csv", r, "date", SLEEP_COLS, fill_only=LOSSY)
+    if api:
+        # One request; adds resting HR, SpO2, skin temp, overnight body battery
+        # and decimal respiration, none of which the key's sleep record has.
+        r = step("legacy sleep", lambda: pull_sleep_range(api, start, today))
+        if r:
+            nights |= {x["date"] for x in r}; src.append("legacy")
+            merge_csv(DATA / "sleep.csv", r, "date", SLEEP_COLS)
+    pct = round(100 * len(nights) / days) if days else 0
+    print(f"{len(nights)}/{days} nights recorded ({pct}%) [{'+'.join(src) or 'none'}]")
 
     print("Daily...", end=" ", flush=True)
-    hrv = pull_hrv_range(api, start, today)
-    vo2 = pull_vo2max_range(api, start, today)
-    endur = pull_endurance_range(api, start, today)
-    rows, errs = [], 0
-    # training_status has no bulk endpoint and is slow; it only matters recently.
-    status_cutoff = today - timedelta(days=30)
-    for i in range(days):
-        d = start + timedelta(days=i)
-        try:
-            r = pull_daily(api, d, with_status=(d >= status_cutoff))
-            if r:
-                ds_ = d.isoformat()
-                if ds_ in hrv:
-                    r["hrv_last_night"], r["hrv_status"], _ = hrv[ds_]
-                if ds_ in vo2:
-                    r["vo2max"], r["fitness_age"], r["heat_acclimation_pct"] = vo2[ds_]
-                if ds_ in endur:
-                    r["endurance_score"] = endur[ds_]
-                rows.append(r)
-        except Exception:
-            errs += 1
-        time.sleep(0.2)
-    n = merge_csv(DATA / "daily.csv", rows, "date", DAILY_COLS)
-    print(f"{len(rows)} days, {n} new" + (f", {errs} errors" if errs else ""))
+    got, src, errs = set(), [], 0
+    if papi:
+        r = key_daily
+        if r is not None:
+            for row in r:
+                if row["date"] in hrv:
+                    row["hrv_last_night"], row["hrv_status"], _ = hrv[row["date"]]
+            got |= {x["date"] for x in r}; src.append("key")
+            merge_csv(DATA / "daily.csv", r, "date", DAILY_COLS, fill_only=LOSSY)
+    if api:
+        vo2 = pull_vo2max_range(api, start, today)
+        endur = pull_endurance_range(api, start, today)
+        rows = []
+        # training_status has no bulk endpoint and is slow; it only matters
+        # recently. The per-day get_stats here also carries decimal floors.
+        status_cutoff = today - timedelta(days=30)
+        for i in range(days):
+            d = start + timedelta(days=i)
+            try:
+                r = pull_daily(api, d, with_status=(d >= status_cutoff))
+                if r:
+                    ds_ = d.isoformat()
+                    if ds_ in hrv:
+                        r["hrv_last_night"], r["hrv_status"], _ = hrv[ds_]
+                    if ds_ in vo2:
+                        r["vo2max"], r["fitness_age"], r["heat_acclimation_pct"] = vo2[ds_]
+                    if ds_ in endur:
+                        r["endurance_score"] = endur[ds_]
+                    rows.append(r)
+            except Exception:
+                errs += 1
+            time.sleep(0.2)
+        got |= {x["date"] for x in rows}; src.append("legacy")
+        merge_csv(DATA / "daily.csv", rows, "date", DAILY_COLS)
+    print(f"{len(got)} days [{'+'.join(src) or 'none'}]" + (f", {errs} errors" if errs else ""))
 
-    print("Readiness...", end=" ", flush=True)
-    rows, errs = [], 0
-    for i in range(days):
-        d = start + timedelta(days=i)
-        try:
-            r = pull_readiness(api, d)
-            if r:
-                rows.append(r)
-        except Exception:
-            errs += 1
-        time.sleep(0.2)
-    n = merge_csv(DATA / "readiness.csv", rows, "date", READINESS_COLS)
-    print(f"{len(rows)} days, {n} new" + (f", {errs} errors" if errs else ""))
+    if api:
+        print("Readiness...", end=" ", flush=True)
+        rows, errs = [], 0
+        for i in range(days):
+            d = start + timedelta(days=i)
+            try:
+                r = pull_readiness(api, d)
+                if r:
+                    rows.append(r)
+            except Exception:
+                errs += 1
+            time.sleep(0.2)
+        n = merge_csv(DATA / "readiness.csv", rows, "date", READINESS_COLS)
+        print(f"{len(rows)} days, {n} new" + (f", {errs} errors" if errs else ""))
+    else:
+        print("Readiness... skipped (legacy session only; the key has no readiness)")
 
     print("Weight...", end=" ", flush=True)
-    wrows = pull_weight_range(api, start - timedelta(days=365), today)
+    wstart = start - timedelta(days=365)
+    wrows = []
+    if papi:
+        # personal_weight swallows errors and returns [], so fall back on empty
+        wrows = step("Personal API weight", lambda: personal_weight(papi, wstart, today)) or []
+    if not wrows and api:
+        wrows = pull_weight_range(api, wstart, today)
     n = merge_csv(DATA / "weight.csv", wrows, "date", WEIGHT_COLS)
     print(f"{len(wrows)} weigh-ins, {n} new")
 

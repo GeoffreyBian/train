@@ -13,7 +13,9 @@ Answer "how is training going" by reading both.
 
 ```
 ~/dev/garmin/
-  garmin_sync.py       # Garmin -> CSV
+  garmin_sync.py       # Garmin -> CSV (Personal API key + legacy session, merged)
+  personal_api.py      # official Personal API client; run alone to check the key
+  .env                 # GARMIN_PERSONAL_API_KEY (gitignored; never print it)
   analyze.py           # CSV -> training report
   sync_details.py      # per-activity splits, HR zones, weather, traces
   refresh.sh           # sync + re-match + rebuild, one command
@@ -21,6 +23,7 @@ Answer "how is training going" by reading both.
   build_dashboard.py   # CSV -> dashboard.html
   dashboard.template.html
   test_analyze.py      # guards on the analysis logic
+  test_personal_api.py # guards on the key path (offline)
   data/
     activities.csv     # one row per workout
     sleep.csv          # one row per night
@@ -28,6 +31,8 @@ Answer "how is training going" by reading both.
     readiness.csv      # one row per morning
     zones.json         # Garmin's own max HR / threshold / zone floors
     details/<id>.json  # per-activity laps, zones, weather, ~160-point trace
+                       # ("partial": true = key-only summary + zones, upgraded
+                       #  to the full record once the legacy session works)
     .last_sync
   insights/weekly/     # YYYY-Www.md reviews
   data/week_plan.json
@@ -43,16 +48,33 @@ One command does everything — sync, re-match this week's runs, rebuild the das
 
 Run it whenever he asks how the week is going, logs new activity, or wants the
 dashboard refreshed. It is safe to re-run and degrades gracefully: if Garmin
-rate-limits or the tokens have expired it says so and rebuilds from existing
+rate-limits or a credential has expired it says so and rebuilds from existing
 data rather than failing.
 
 Then **republish `dashboard.html` to the URL in `insights/ARTIFACT.txt`**, passing
 that URL as `url`. Publishing without it creates a second artifact and orphans
 the ticks stored against the first.
 
-If `refresh.sh` reports an auth error, tokens expired (~6 months). He has to run
-`./.venv/bin/python garmin_sync.py --login` himself — it prompts for a password
-and MFA code.
+### Two sources, and what each expiry costs
+
+The sync reads Garmin two ways and merges per field (details in
+`garmin_sync.py`'s docstring and the README's "Two sources" table):
+
+- **Personal API key** (official, Oct 2026) — `GARMIN_PERSONAL_API_KEY` in
+  `.env`. Activities, sleep, daily wellness, HRV, weight, HR zones, per-run zone
+  times. Lasts 30 days to a year; Garmin emails a week before expiry. If
+  `refresh.sh` prints `token exchange refused (HTTP 401)`, the key is dead: he
+  makes a new one at connect.garmin.com/app/settings/personalApiToken and puts
+  it in `.env` himself. Never paste a key into chat or a commit.
+- **Legacy session** (~6 months) — still the only source of readiness, training
+  status, VO2max/heat history, endurance score, per-run VO2max, laps, weather
+  and traces. If the sync prints `Legacy session: unavailable`, the core data
+  still updated but those did not. He runs
+  `./.venv/bin/python garmin_sync.py --login` himself (password + MFA). The next
+  sync backfills the gap automatically.
+
+Say which one lapsed in the briefing: a stale readiness score with fresh sleep
+data looks like a recovery signal and is not one.
 
 Never hand-edit `dashboard.html`; it is regenerated every refresh. Edit
 `dashboard.template.html`. The build fails loudly if a `{{token}}` goes unfilled.
@@ -90,7 +112,9 @@ night or day, point him at the URL rather than retyping the numbers.
 
 `sync_details.py` fetches lap splits, time in each HR zone, weather and a
 downsampled HR/pace/elevation/cadence trace, one JSON per activity, fetched once
-and kept. `refresh.sh` tops up anything missing.
+and kept. `refresh.sh` tops up anything missing. Laps, weather and the trace
+need the legacy session; without it the key writes a `partial` file (summary +
+zone seconds, identical to the legacy values) and a later run upgrades it.
 
 **Intensity distribution is measured, not inferred.** `analyze.zone_seconds()`
 sums Garmin's own per-activity seconds-in-zone from `data/details/`. Never bucket
@@ -112,37 +136,9 @@ outside any runnable range. Both are corrected at render time.
 
 ## Live queries
 
-## Drill-down views
-
-The dashboard is hash-routed: `#/activities`, `#/activity/<id>`, `#/nights`,
-`#/night/<date>`, `#/days`, `#/day/<date>`. When he asks about a specific run,
-night or day, point him at the URL rather than retyping the numbers.
-
-`sync_details.py` fetches lap splits, time in each HR zone, weather and a
-downsampled HR/pace/elevation/cadence trace, one JSON per activity, fetched once
-and kept. `refresh.sh` tops up anything missing.
-
-**Intensity distribution is measured, not inferred.** `analyze.zone_seconds()`
-sums Garmin's own per-activity seconds-in-zone from `data/details/`. Never bucket
-a whole run into one zone by its average HR — that hides both ends of a session
-and under-reported his Z4 by half (14% against a real 28%).
-
-**Adherence uses complete weeks only.** Including the current, partial week reads
-as a decline that has not happened.
-
-**Heart-rate zones come from `data/zones.json`**, which is Garmin's own model for
-him (max 198, threshold 177, floors 99/119/139/158/178). Do not infer a max HR
-from observed peaks — that understated it as 194 and moved the intensity
-distribution from 71% to 38% in Z3, which is a completely different read on his
-training.
-
-Two unit traps already handled: Garmin's *series* cadence is per-leg while its
-*lap* cadence is steps/min, and a single bad GPS sample can put a pace value
-outside any runnable range. Both are corrected at render time.
-
-## Live queries
-
-The `garmin` MCP server exposes 110+ live tools for anything not in the CSVs:
+The `garmin` MCP server runs on the legacy session tokens (not the key, which is
+read-only and cannot write workouts). It exposes 110+ live tools for anything
+not in the CSVs:
 per-activity splits, HR zone distribution, gear mileage, race predictions,
 and writing workouts back to the watch. Prefer the CSVs for anything
 historical or trend-shaped — they're already local and cheaper to scan.

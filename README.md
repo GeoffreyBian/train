@@ -3,9 +3,11 @@
 Pulls your own Garmin Connect data into local CSVs, analyses it against a race
 goal, and builds a dashboard you can publish and read each week.
 
-Built because Garmin has no public personal API and broke every community auth
-library in March 2026. Runs entirely on your machine; your health data never
-leaves it.
+Built when Garmin had no public personal API and broke every community auth
+library in March 2026. Since Garmin's official Personal API arrived in October
+2026 it reads the core data through that key, and keeps the unofficial session
+only for what the key does not expose. Runs entirely on your machine; your
+health data never leaves it.
 
 ```
 ./refresh.sh          # sync -> match this week's runs -> rebuild the dashboard
@@ -25,20 +27,40 @@ can read the numbers and the source that produced them side by side.
 uv venv --python 3.12 .venv
 uv pip install --python .venv/bin/python garminconnect curl_cffi pytest
 
-./.venv/bin/python garmin_sync.py --login   # one-time; prompts for password + MFA
+cp .env.example .env                        # then paste your Personal API key
+./.venv/bin/python personal_api.py          # checks the key: "OK: Personal API reachable"
+./.venv/bin/python garmin_sync.py --login   # optional; prompts for password + MFA
 ./.venv/bin/python garmin_sync.py --days 365
 ./refresh.sh
 ```
 
-Tokens land in `~/.garminconnect` and last about six months. The same file works
-with the [Taxuspt/garmin_mcp](https://github.com/Taxuspt/garmin_mcp) MCP server
-if you want live queries alongside the local mirror.
+### Two sources
+
+| | Personal API key | Legacy session |
+|---|---|---|
+| Set up | key from [connect.garmin.com/app/settings/personalApiToken](https://connect.garmin.com/app/settings/personalApiToken) into `.env` | `garmin_sync.py --login` (password + MFA) |
+| Lasts | 30 days to 1 year, your choice; 24 h tokens minted automatically | about six months, in `~/.garminconnect` |
+| Supplies | activities, sleep, daily wellness, HRV, weight, HR zones, per-run zone times and summary | readiness, training status, VO2max and heat-acclimation history, endurance score, per-run VO2max, laps, weather, traces, and decimal respiration / floors |
+
+The key is official and read-only, with no password and no per-IP login
+throttling, so the core data keeps syncing when the session expires. On every
+field both sources carry, the values are identical (checked over 60 days and
+65 runs), and the key never overwrites the session's finer-grained respiration
+and floors. When the session comes back, the next sync backfills whatever it
+missed, and key-only `partial` activity details are upgraded to full ones.
+`--personal-only` and `--legacy-only` force one source.
+
+The session tokens also work with the
+[Taxuspt/garmin_mcp](https://github.com/Taxuspt/garmin_mcp) MCP server if you
+want live queries alongside the local mirror. The key cannot replace it there:
+it is read-only, so it cannot schedule workouts.
 
 ## What it does
 
 | Script | Job |
 |---|---|
 | `garmin_sync.py` | Garmin Connect &rarr; CSVs in `data/`. Incremental, re-runnable, upserts on key. |
+| `personal_api.py` | Client for Garmin's official Personal API: key &rarr; 24 h token, date-window chunking. Run it alone to check the key. |
 | `analyze.py` | Full training report: volume, adherence, efficiency, load, recovery, sleep, verdict. `--write` also drops `insights/latest.md`. |
 | `week_plan.py` | This week's prescribed runs, auto-matched against what you actually did. |
 | `build_dashboard.py` | `dashboard.template.html` + CSVs &rarr; `dashboard.html`. |
@@ -46,6 +68,7 @@ if you want live queries alongside the local mirror.
 | `sync_details.py` | Per-activity splits, HR zones, weather and a downsampled trace. One JSON per activity. |
 | `demo_data.py` | A synthetic year of data, so the dashboard can be seen without a Garmin account. |
 | `test_analyze.py` | Guards the two corrections below. Run after touching `analyze.py`. |
+| `test_personal_api.py` | Offline guards on the key path: window chunking, token caching, field mapping, fill-only merge, partial details. |
 
 ### Data
 
@@ -263,9 +286,13 @@ before trusting the zone splits.
 
 ## Notes
 
-- This is unofficial and not affiliated with Garmin. It signs in as you, to read
-  your own data, through the same mobile SSO flow the Android app uses.
-- Login cascades through five strategies; seeing the first one or two log a 429
+- Not affiliated with Garmin. The Personal API path is Garmin's official one;
+  the legacy path signs in as you, to read your own data, through the same
+  mobile SSO flow the Android app uses.
+- The Personal API only reaches the 26 endpoints in Garmin's spec. Readiness,
+  training status, VO2max history and endurance score return 404 under the key,
+  which is why the legacy session is still worth renewing.
+- Legacy login cascades through five strategies; seeing the first one or two log a 429
   and fall through is normal, not a failure. `--verbose` shows the detail.
 - If auth breaks again, the fallback with a genuinely different failure mode is
   [nrvim/garmin-givemydata](https://github.com/nrvim/garmin-givemydata), which
